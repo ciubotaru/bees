@@ -16,7 +16,7 @@
       'list[nodemeta:'.. spos .. ';combs;1.5,3;5,1;]'..
       'list[current_player;main;0,5;8,4;]'
     if grafting then
-      formspec = formspec..'list[nodemeta:'.. spos .. ';queen;3.5,1;1,1;]'
+      formspec = formspec..'list[nodemeta:'.. spos .. ';colony;3.5,1;1,1;]'
     end
     return formspec
   end
@@ -25,7 +25,7 @@
     local spos = pos.x..','..pos.y..','..pos.z
     local formspec =
       'size[8,9]'..
-      'list[nodemeta:'..spos..';queen;3.5,1;1,1;]'..
+      'list[nodemeta:'..spos..';colony;3.5,1;1,1;]'..
       'list[nodemeta:'..spos..';frames;0,3;8,1;]'..
       'list[current_player;main;0,5;8,4;]'
     return formspec
@@ -206,10 +206,10 @@
       local maxp = {x=pos.x+rad, y=pos.y+rad, z=pos.z+rad}
       local flowers = minetest.find_nodes_in_area(minp, maxp, 'group:flower')
       if #flowers == 0 then 
-        inv:set_stack('queen', 1, '')
+        inv:set_stack('colony', 1, '')
         meta:set_string('infotext', 'this colony died, not enough flowers in area')
         return 
-      end --not any flowers nearby The queen dies!
+      end --not any flowers nearby The colony dies!
       if #flowers < 3 then return end --requires 2 or more flowers before can make honey
       local flower = flowers[math.random(#flowers)] 
       bees.polinate_flower(flower, minetest.get_node(flower).name)
@@ -230,9 +230,9 @@
       local timer = minetest.get_node_timer(pos)
       meta:set_int('agressive', 1)
       timer:start(100+math.random(100))
-      inv:set_size('queen', 1)
+      inv:set_size('colony', 1)
       inv:set_size('combs', 5)
-      inv:set_stack('queen', 1, 'bees:queen')
+      inv:set_stack('colony', 1, 'bees:colony')
       for i=1,math.random(3) do
         inv:set_stack('combs', i, 'bees:honey_comb')
       end
@@ -240,7 +240,7 @@
     on_punch = function(pos, node, puncher)
       local meta = minetest.get_meta(pos)
       local inv = meta:get_inventory()
-      if inv:contains_item('queen','bees:queen') then
+      if inv:contains_item('colony','bees:colony') then
         local health = puncher:get_hp()
         puncher:set_hp(health-4)
       end
@@ -249,7 +249,7 @@
       local meta = minetest.get_meta(pos)
       local inv  = meta:get_inventory()
       local timer= minetest.get_node_timer(pos)
-      if listname == 'combs' and inv:contains_item('queen', 'bees:queen') then
+      if listname == 'combs' and inv:contains_item('colony', 'bees:colony') then
         local health = taker:get_hp()
         timer:start(10)
         taker:set_hp(health-2)
@@ -262,7 +262,7 @@
       end
     end,
     allow_metadata_inventory_put = function(pos, listname, index, stack, player)
-      if listname == 'queen' and stack:get_name() == 'bees:queen' then
+      if listname == 'colony' and stack:get_name() == 'bees:colony' then
         return 1
       else
         return 0
@@ -276,7 +276,7 @@
       )
       local meta = minetest.get_meta(pos)
       local inv  = meta:get_inventory()
-      if meta:get_int('agressive') == 1 and inv:contains_item('queen', 'bees:queen') then
+      if meta:get_int('agressive') == 1 and inv:contains_item('colony', 'bees:colony') then
         local health = clicker:get_hp()
         clicker:set_hp(health-4)
       else
@@ -286,7 +286,7 @@
     can_dig = function(pos,player)
       local meta = minetest.get_meta(pos)
       local inv  = meta:get_inventory()
-      if inv:is_empty('queen') and inv:is_empty('combs') then
+      if inv:is_empty('colony') and inv:is_empty('combs') then
         return true
       else
         return false
@@ -297,7 +297,7 @@
       if 'bees:grafting_tool' == wielded:get_name() then 
         local inv = user:get_inventory()
         if inv then
-          inv:add_item('main', ItemStack('bees:queen'))
+          inv:add_item('main', ItemStack('bees:colony'))
         end
       end
     end
@@ -327,9 +327,9 @@
       local meta = minetest.get_meta(pos)
       local inv = meta:get_inventory()
       meta:set_int('agressive', 1)
-      inv:set_size('queen', 1)
+      inv:set_size('colony', 1)
       inv:set_size('frames', 8)
-      meta:set_string('infotext','requires queen bee to function')
+      meta:set_string('infotext','requires a bee colony to function')
     end,
     on_rightclick = function(pos, node, clicker, itemstack)
       minetest.show_formspec(
@@ -339,7 +339,7 @@
       )
       local meta = minetest.get_meta(pos)
       local inv  = meta:get_inventory()
-      if meta:get_int('agressive') == 1 and inv:contains_item('queen', 'bees:queen') then
+      if meta:get_int('agressive') == 1 and inv:contains_item('colony', 'bees:colony') then
         local health = clicker:get_hp()
         clicker:set_hp(health-4)
       else
@@ -350,7 +350,7 @@
       local meta = minetest.get_meta(pos)
       local inv = meta:get_inventory()
       local timer = minetest.get_node_timer(pos)
-      if inv:contains_item('queen', 'bees:queen') then
+      if inv:contains_item('colony', 'bees:colony') then
         if inv:contains_item('frames', 'bees:frame_empty') then
           timer:start(30)
           local rad  = 10
@@ -381,10 +381,10 @@
       end
     end,
     on_metadata_inventory_take = function(pos, listname, index, stack, player)
-      if listname == 'queen' then
+      if listname == 'colony' then
         local timer = minetest.get_node_timer(pos)
         local meta = minetest.get_meta(pos)
-        meta:set_string('infotext','requires queen bee to function')
+        meta:set_string('infotext','requires a bee colony to function')
         timer:stop()
       end
     end,
@@ -404,9 +404,9 @@
       local meta = minetest.get_meta(pos)
       local inv = meta:get_inventory()
       local timer = minetest.get_node_timer(pos)
-      if listname == 'queen' or listname == 'frames' then
-        meta:set_string('queen', stack:get_name())
-        meta:set_string('infotext','queen is inserted, now for the empty frames');
+      if listname == 'colony' or listname == 'frames' then
+        meta:set_string('colony', stack:get_name())
+        meta:set_string('infotext','a colony is inserted, now for the empty frames');
         if inv:contains_item('frames', 'bees:frame_empty') then
           timer:start(30)
           meta:set_string('infotext','bees are aclimating');
@@ -415,8 +415,8 @@
     end,
     allow_metadata_inventory_put = function(pos, listname, index, stack, player)
       if not minetest.get_meta(pos):get_inventory():get_stack(listname, index):is_empty() then return 0 end
-      if listname == 'queen' then
-        if stack:get_name():match('bees:queen*') then
+      if listname == 'colony' then
+        if stack:get_name():match('bees:colony*') then
           return 1
         end
       elseif listname == 'frames' then
@@ -515,8 +515,8 @@
     stack_max = 8,
   })
 
-  minetest.register_craftitem('bees:queen', {
-    description = 'Queen Bee',
+  minetest.register_craftitem('bees:colony', {
+    description = 'A Bee Colony',
     inventory_image = 'bees_particle_bee.png',
     stack_max = 1,
   })
@@ -614,6 +614,7 @@
   --ALIASES
     minetest.register_alias('bees:honey_extractor', 'bees:extractor')
   --BACKWARDS COMPATIBILITY WITH OLDER VERSION  
+    minetest.register_alias('bees:queen', 'bees:colony')
     minetest.register_alias('bees:honey_bottle', 'bees:bottle_honey')
     minetest.register_abm({
       nodenames = {'bees:hive', 'bees:hive_artificial_inhabited'},
@@ -624,13 +625,13 @@
           minetest.set_node(pos, { name = 'bees:hive_wild' })
           local meta = minetest.get_meta(pos)
           local inv  = meta:get_inventory()
-          inv:set_stack('queen', 1, 'bees:queen')
+          inv:set_stack('colony', 1, 'bees:colony')
         end
         if node.name == 'bees:hive_artificial_inhabited' then
           minetest.set_node(pos, { name = 'bees:hive_artificial' })
           local meta = minetest.get_meta(pos)
           local inv  = meta:get_inventory()
-          inv:set_stack('queen', 1, 'bees:queen')
+          inv:set_stack('colony', 1, 'bees:colony')
           local timer = minetest.get_node_timer(pos)
           timer:start(60)
         end
@@ -691,9 +692,9 @@
           local meta = minetest.get_meta(pos)
           local inv = meta:get_inventory()
           meta:set_int('agressive', 1)
-          inv:set_size('queen', 1)
+          inv:set_size('colony', 1)
           inv:set_size('frames', 8)
-          meta:set_string('infotext','requires queen bee to function')
+          meta:set_string('infotext','requires a bee colony to function')
         end,
         on_rightclick = function(pos, node, clicker, itemstack)
           minetest.show_formspec(
@@ -703,7 +704,7 @@
           )
           local meta = minetest.get_meta(pos)
           local inv  = meta:get_inventory()
-          if meta:get_int('agressive') == 1 and inv:contains_item('queen', 'bees:queen') then
+          if meta:get_int('agressive') == 1 and inv:contains_item('colony', 'bees:colony') then
             local health = clicker:get_hp()
             clicker:set_hp(health-4)
           else
@@ -714,7 +715,7 @@
           local meta = minetest.get_meta(pos)
           local inv = meta:get_inventory()
           local timer = minetest.get_node_timer(pos)
-          if inv:contains_item('queen', 'bees:queen') then
+          if inv:contains_item('colony', 'bees:colony') then
             if inv:contains_item('frames', 'bees:frame_empty') then
               timer:start(30)
               local rad  = 10
@@ -745,10 +746,10 @@
           end
         end,
         on_metadata_inventory_take = function(pos, listname, index, stack, player)
-          if listname == 'queen' then
+          if listname == 'colony' then
             local timer = minetest.get_node_timer(pos)
             local meta = minetest.get_meta(pos)
-            meta:set_string('infotext','requires queen bee to function')
+            meta:set_string('infotext','requires a bee colony to function')
             timer:stop()
           end
         end,
@@ -768,9 +769,9 @@
           local meta = minetest.get_meta(pos)
           local inv = meta:get_inventory()
           local timer = minetest.get_node_timer(pos)
-          if listname == 'queen' or listname == 'frames' then
-            meta:set_string('queen', stack:get_name())
-            meta:set_string('infotext','queen is inserted, now for the empty frames');
+          if listname == 'colony' or listname == 'frames' then
+            meta:set_string('colony', stack:get_name())
+            meta:set_string('infotext','a colony is inserted, now for the empty frames');
             if inv:contains_item('frames', 'bees:frame_empty') then
               timer:start(30)
               meta:set_string('infotext','bees are aclimating');
@@ -779,8 +780,8 @@
         end,
         allow_metadata_inventory_put = function(pos, listname, index, stack, player)
           if not minetest.get_meta(pos):get_inventory():get_stack(listname, index):is_empty() then return 0 end
-          if listname == 'queen' then
-            if stack:get_name():match('bees:queen*') then
+          if listname == 'colony' then
+            if stack:get_name():match('bees:colony*') then
               return 1
             end
           elseif listname == 'frames' then
