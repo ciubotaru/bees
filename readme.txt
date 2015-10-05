@@ -35,6 +35,12 @@ FEATURES
 FUTURE
 ------
 - more realistic spawning of wild bee hives
+- small positive probability of spontaneous colonization of artificial hives
+- smaller probability of spontaneous spawning wind hives
+- spawning of a wild hive depends on existence of hives (any hives) and flowers 
+in the neighborhood (at least one hive; higher flower/hives ratio increases 
+chances)
+
 
 CONTRIBUTORS
 ------------
