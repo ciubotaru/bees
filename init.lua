@@ -41,6 +41,14 @@
     end
   end
 
+  function bees.count_flowers_around(pos)
+    local rad  = 10
+    local minp = {x=pos.x-rad, y=pos.y-rad, z=pos.z-rad}
+    local maxp = {x=pos.x+rad, y=pos.y+rad, z=pos.z+rad}
+    local flowers = minetest.find_nodes_in_area(minp, maxp, 'group:flower')
+    return flowers
+  end
+
 --NODES
   minetest.register_node('bees:extractor', {
     description = 'honey extractor',
@@ -201,10 +209,7 @@
       local meta = minetest.get_meta(pos)
       local inv  = meta:get_inventory()
       local timer= minetest.get_node_timer(pos)
-      local rad  = 10
-      local minp = {x=pos.x-rad, y=pos.y-rad, z=pos.z-rad}
-      local maxp = {x=pos.x+rad, y=pos.y+rad, z=pos.z+rad}
-      local flowers = minetest.find_nodes_in_area(minp, maxp, 'group:flower')
+      local flowers = bees.count_flowers_around(pos)
       if #flowers == 0 then 
         inv:set_stack('colony', 1, '')
         meta:set_string('infotext', 'this colony died, not enough flowers in area')
@@ -353,10 +358,7 @@
       if inv:contains_item('colony', 'bees:colony') then
         if inv:contains_item('frames', 'bees:frame_empty') then
           timer:start(30)
-          local rad  = 10
-          local minp = {x=pos.x-rad, y=pos.y-rad, z=pos.z-rad}
-          local maxp = {x=pos.x+rad, y=pos.y+rad, z=pos.z+rad}
-          local flowers = minetest.find_nodes_in_area(minp, maxp, 'group:flower')
+          local flowers = bees.count_flowers_around(pos)
           local progress = meta:get_int('progress')
           progress = progress + #flowers
           meta:set_int('progress', progress)
@@ -446,7 +448,7 @@
     end,
   })
 
-  minetest.register_abm({ --spawn abm. This should be changed to a more realistic type of spawning
+  minetest.register_abm({ --spontaneous spawning of wild hives
     nodenames = {'group:leaves'},
     neighbors = {''},
     interval = 1600,
@@ -454,7 +456,9 @@
     action = function(pos, node, _, _)
       local p = {x=pos.x, y=pos.y-1, z=pos.z}
       if minetest.get_node(p).walkable == false then return end
-      if (minetest.find_node_near(p, 5, 'group:flora') ~= nil and minetest.find_node_near(p, 40, 'bees:hive_wild') == nil) then
+      local flowers = bees.count_flowers_around(pos)
+      if (#flowers > 2 and minetest.find_node_near(p, 40, 'bees:hive_wild') == nil) then
+        print('Wild beehive created at ' .. p.x .. ', ' .. p.y .. ', ' .. p.z)
         minetest.add_node(p, {name='bees:hive_wild'})
       end
     end,
