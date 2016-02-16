@@ -31,16 +31,6 @@
     return formspec
   end
 
-  function bees.polinate_flower(pos, flower)
-    local spawn_pos = { x=pos.x+math.random(-3,3) , y=pos.y+math.random(-3,3) , z=pos.z+math.random(-3,3) }
-    local floor_pos = { x=spawn_pos.x , y=spawn_pos.y-1 , z=spawn_pos.z }
-    local spawn = minetest.get_node(spawn_pos).name
-    local floor = minetest.get_node(floor_pos).name
-    if floor == 'default:dirt_with_grass' and spawn == 'air' then
-      minetest.set_node(spawn_pos, {name=flower})
-    end
-  end
-
   function bees.count_flowers_around(pos)
     local rad  = 10
     local minp = {x=pos.x-rad, y=pos.y-rad, z=pos.z-rad}
@@ -211,13 +201,12 @@
       local timer= minetest.get_node_timer(pos)
       local flowers = bees.count_flowers_around(pos)
       if #flowers == 0 then 
-        inv:set_stack('colony', 1, '')
+        inv:set_stack('colony', 1, '') --this removes the colony from the hive inventory
         meta:set_string('infotext', 'this colony died, not enough flowers in area')
         return 
       end --not any flowers nearby The colony dies!
       if #flowers < 3 then return end --requires 2 or more flowers before can make honey
-      local flower = flowers[math.random(#flowers)] 
-      bees.polinate_flower(flower, minetest.get_node(flower).name)
+      local flower = flowers[math.random(#flowers)]
       local stacks = inv:get_list('combs')
       for k, v in pairs(stacks) do
         if inv:get_stack('combs', k):is_empty() then --then replace that with a full one and reset pro..
@@ -363,8 +352,6 @@
           progress = progress + #flowers
           meta:set_int('progress', progress)
           if progress > 1000 then
-            local flower = flowers[math.random(#flowers)] 
-            bees.polinate_flower(flower, minetest.get_node(flower).name)
             local stacks = inv:get_list('frames')
             for k, v in pairs(stacks) do
               if inv:get_stack('frames', k):get_name() == 'bees:frame_empty' then
@@ -730,8 +717,6 @@
               progress = progress + #flowers
               meta:set_int('progress', progress)
               if progress > 1000 then
-                local flower = flowers[math.random(#flowers)] 
-                bees.polinate_flower(flower, minetest.get_node(flower).name)
                 local stacks = inv:get_list('frames')
                 for k, v in pairs(stacks) do
                   if inv:get_stack('frames', k):get_name() == 'bees:frame_empty' then
