@@ -3,6 +3,12 @@ BEES MOD V2.2
 
 FEATURES
 --------
+dev
+- pollination removed
+- honeycomb generation depends on other hives around, not just number of flowers; speed cap added
+- wild bee hives swarm and create new hives when no free space left
+- bee swarms try to re-colonize empty hives
+
 3.0
 - Pipeworks compatibility (Industrial beehive)
 - Get honey comb from full frame
@@ -35,12 +41,7 @@ FEATURES
 FUTURE
 ------
 - more realistic spawning of wild bee hives
-- small positive probability of spontaneous colonization of artificial hives
-- smaller probability of spontaneous spawning wind hives
-- spawning of a wild hive depends on existence of hives (any hives) and flowers 
-in the neighborhood (at least one hive; higher flower/hives ratio increases 
-chances)
-
+- growth speeds need to be adjusted accross types of hive
 
 CONTRIBUTORS
 ------------

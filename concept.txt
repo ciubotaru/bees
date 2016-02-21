@@ -1,0 +1,10 @@
+Hives: wild, domestic
+Hive contains: a bee colony, plus -- generally -- wax and honey.
+A wild hive contains a bee colony and honey combs
+A domestic hive contains a bee colony, empty frames and/or full frames
+
+The activity of a hive depends on the number of flowers within reach and the number of other hives around. The area where a hive collects honey and competes with other hives is measured by "bees_radius" (default value is 10). More flowers and less competitors means faster generation of combs and eventually more swarms splitting off and creating new hives. Less flowers and more competition means depletion of honey from combs and eventually death of the colony. Empty wild hives disappear after a while.
+
+If a wild hive with a colony runs out of free space to store honey (all combs are filled), it splits: a swarm takes one comb of honey and flies away in search of a new location. Swarms settle between 1 and 2 radii from their mother hive. If conditions (flowers/competitors ratio) are good, a swarm will try to settle an abandoned hive, or create a new wild hive. If the swarm does not find any suitable location (not enough flowers, too many competitors, no amandoned hives, no leaves to hang a wild hive), it will die.
+
+To avoid circular dependency (more bees -> more pollination -> more flowers -> more bees), the pollination functionality was removed and now the number of flowers is not affected by bees. Because of the built-in game mechanics, flowers propagate anyway.

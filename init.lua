@@ -5,8 +5,21 @@
 --License	WTFPL
 
 --VARIABLES
+  if minetest.setting_get("bees_radius") == nil then
+    bees_radius = 10
+  else
+    bees_radius = minetest.setting_get('bees_radius')
+  end
+
+  if minetest.setting_get("bees_speedup") == nil then
+    bees_speedup = 1
+  else
+    bees_speedup = minetest.setting_get('bees_speedup')
+  end
+
   local bees = {}
   local formspecs = {}
+  local hive_types = {'bees:hive_artificial', 'bees:hive_wild', 'bees:hive_industrial'}
 
 --FUNCTIONS
   function formspecs.hive_wild(pos, grafting)
@@ -32,11 +45,176 @@
   end
 
   function bees.count_flowers_around(pos)
-    local rad  = 10
-    local minp = {x=pos.x-rad, y=pos.y-rad, z=pos.z-rad}
-    local maxp = {x=pos.x+rad, y=pos.y+rad, z=pos.z+rad}
+    local minp = {x = pos.x - bees_radius, y = pos.y - bees_radius, z = pos.z - bees_radius}
+    local maxp = {x = pos.x + bees_radius, y = pos.y + bees_radius, z = pos.z + bees_radius}
     local flowers = minetest.find_nodes_in_area(minp, maxp, 'group:flower')
+    if not flowers then
+      return 0
+    end
     return flowers
+  end
+
+  function bees.count_hives_around(pos)
+    local minp = {x = pos.x - bees_radius, y = pos.y - bees_radius, z = pos.z - bees_radius}
+    local maxp = {x = pos.x + bees_radius, y = pos.y + bees_radius, z = pos.z + bees_radius}
+    local nodenames = {'bees:hive_artificial', 'bees:hive_wild', 'bees:hive_industrial'}
+    local hives = minetest.find_nodes_in_area(minp, maxp, nodenames)
+    local i
+    if not hives then
+      return 0
+    end
+    for i = #hives, 1, -1 do
+      if not bees.is_hive_alive(hives[i]) then
+        table.remove(hives, i)
+      end
+    end
+    return hives
+  end
+
+  function bees.growth_rate(nr_flowers, nr_hives)
+    local growth_rate = (nr_flowers - 2) - nr_hives * 4
+    if growth_rate > 4 then
+      return 4 --can not grow faster than that
+    elseif growth_rate < -1 then
+      return -1 --can not disappear faster than that
+    end
+    return growth_rate --an integer between -1 and 4
+  end
+
+  function bees.count_honey_combs(inv)
+    local stacks = inv:get_list('combs')
+    local honey_combs = 0
+    for i=1,#stacks do
+      if not inv:get_stack('combs', i):is_empty() then
+        honey_combs = honey_combs + 1
+      end
+    end
+    return honey_combs
+  end
+
+  function bees.swarming(pos) --splitting off a new wild hive from an existing one
+--print("A swarm left its hive at " .. pos.x .. "," .. pos.y .. "," .. pos.z)
+    local minp = {x = pos.x - bees_radius * 2, y = pos.y - bees_radius * 2, z = pos.z - bees_radius * 2}
+    local maxp = {x = pos.x + bees_radius * 2, y = pos.y + bees_radius * 2, z = pos.z + bees_radius * 2}
+    local i
+    local hives_around
+    local flowers_around
+    local growth_rate
+    local new_hive_pos
+    --first let's see if we can colonize an abandoned hive...
+    --retrieve the list of hives within 2 radii from mother hive
+    local hives = minetest.find_nodes_in_area(minp, maxp, hive_types)
+    for i = #hives, 1, -1 do --go backwards
+      --remove hives that are within 1 radius (too close)
+      if hives[i].x > pos.x - bees_radius and hives[i].x < pos.x + bees_radius and hives[i].y > pos.y - bees_radius and hives[i].y < pos.y + bees_radius and hives[i].z > pos.z - bees_radius and hives[i].z < pos.z + bees_radius then
+        table.remove(hives, i)
+      --then remove hives that are non-empty
+      elseif bees.is_hive_alive(hives[i]) then
+        table.remove(hives, i)
+      --then remove hives with non-positive growth rate
+      elseif bees.growth_rate(#bees.count_flowers_around(hives[i]),  #bees.count_hives_around(hives[i])) < 1 then
+        table.remove(hives, i)
+      end
+    end
+    --see if any suitable hives are left
+    if #hives > 0 then
+      --chose at random
+      local newpos = hives[math.random(1, #hives)]
+      bees.recolonize_hive(newpos)
+print("The swarm from " .. pos.x .. "," .. pos.y .. "," .. pos.z .. " recolonized a hive at " .. newpos.x .. "," .. newpos.y .. "," .. newpos.z)
+      return true
+    end
+    --if we are here, the swarm found no suitable hives for recolonization
+--print("The swarm did not find any free hives")
+    --let's try to build a wild hive
+    --retrieve the list of leaves within 2 radii from mother hive
+    local leaves = minetest.find_nodes_in_area(minp, maxp, 'group:leaves')
+    --quit if no leaves at all
+    if leaves == nil then
+--print("The swarm found no leaves. Died")
+      return true
+    end
+    for i = #leaves, 1, -1 do --go backwards
+      --remove leaves that are too close
+      if leaves[i].x > pos.x - bees_radius and leaves[i].x < pos.x + bees_radius and leaves[i].y > pos.y - bees_radius and leaves[i].y < pos.y + bees_radius and leaves[i].z > pos.z - bees_radius and leaves[i].z < pos.z + bees_radius then
+        table.remove(leaves, i)
+      end
+    end
+--print("The swarm found " .. #leaves .. " leaves")
+    if #leaves < 1 then
+--print("The swarm from " .. pos.x .. "," .. pos.y .. "," .. pos.z .. " died: no leaves to hang a hive")
+      return false --the swarm could not find any leaves
+    end
+    local spaces = {}
+    --local tmp_space = {}
+    --find all free space around remaining leaves
+    for i=#leaves, 1, -1 do
+      --for every leaf, see if there's air beneath
+      if minetest.get_node({x = leaves[i].x, y = leaves[i].y - 1, z = leaves[i].z}).name == 'air' then
+        table.insert(spaces, {x = leaves[i].x, y = leaves[i].y - 1, z = leaves[i].z})
+      end
+    end
+    if #spaces < 1 then
+--print("The swarm from " .. pos.x .. "," .. pos.y .. "," .. pos.z .. " died.")
+      return false --the swarm could not find any free space
+    end
+--print("Swarm found " .. #spaces .. " free places to create a hive")
+    --iterate among good spaces and remove ones with non-positive growth_rate
+    for i = #spaces, 1, -1 do
+      new_hive_pos = {x = spaces[i].x, y = spaces[i].y, z = spaces[i].z}
+      hives_around = bees.count_hives_around(new_hive_pos)
+      flowers_around = bees.count_flowers_around(new_hive_pos)
+      growth_rate = bees.growth_rate(#flowers_around, #hives_around)
+      if growth_rate < 1 then
+        table.remove(spaces, i)
+      end
+    end
+    -- if there's at least one good space left, choose at random and colonize
+    if #spaces > 0 then
+      new_hive_pos = spaces[math.random(1, #spaces)]
+      minetest.set_node(new_hive_pos, {name = 'bees:hive_wild'})
+      bees.fill_new_wild_hive(new_hive_pos)
+print("The swarm built a new wild hive at " .. new_hive_pos.x .. ", " .. new_hive_pos.y .. ", " .. new_hive_pos.z)
+      return true
+    end
+--print("The swarm from " .. pos.x .. "," .. pos.y .. "," .. pos.z .. " died.")
+    return false --the swarm could not find free space with good growth rate
+  end
+
+  function bees.fill_new_wild_hive(pos)
+    minetest.get_node(pos).param2 = 0
+    local meta = minetest.get_meta(pos)
+    local inv  = meta:get_inventory()
+    meta:set_int('agressive', 1)
+    inv:set_size('colony', 1)
+    inv:set_size('combs', 5)
+    inv:set_stack('colony', 1, 'bees:colony')
+    inv:set_stack('combs', 1, 'bees:honey_comb') --always start with one comb
+    meta:set_string('infotext','This colony is growing')
+    local timer = minetest.get_node_timer(pos)
+    timer:start(1000 / bees_speedup)
+  end
+
+  function bees.recolonize_hive(pos)
+    local meta = minetest.get_meta(pos)
+    local inv  = meta:get_inventory()
+    meta:set_int('agressive', 1)
+    inv:set_stack('colony', 1, 'bees:colony')
+    meta:set_string('infotext','The hive has just been recolonized')
+    local timer = minetest.get_node_timer(pos)
+    if not timer:is_started() then
+      timer:start(1000 / bees_speedup) --set timer for the newly created hive
+    end
+  end
+
+  function bees.is_hive_alive(pos)
+    local meta = minetest.get_meta(pos)
+    local inv  = meta:get_inventory()
+    if inv:get_stack('colony', 1):is_empty() then
+      return false
+    else
+      return true
+    end
   end
 
 --NODES
@@ -87,8 +265,8 @@
         --wax flying all over the place
         minetest.add_particle({
           pos = {x=pos.x, y=pos.y, z=pos.z},
-          vel = {x=math.random(-4,4),y=math.random(8),z=math.random(-4,4)},
-          acc = {x=0,y=-6,z=0},
+          velocity = {x=math.random(-4,4),y=math.random(8),z=math.random(-4,4)},
+          acceleration = {x=0,y=-6,z=0},
           expirationtime = 2,
           size = math.random(1,3),
           collisiondetection = false,
@@ -200,36 +378,69 @@
       local inv  = meta:get_inventory()
       local timer= minetest.get_node_timer(pos)
       local flowers = bees.count_flowers_around(pos)
-      if #flowers == 0 then 
-        inv:set_stack('colony', 1, '') --this removes the colony from the hive inventory
-        meta:set_string('infotext', 'this colony died, not enough flowers in area')
-        return 
-      end --not any flowers nearby The colony dies!
-      if #flowers < 3 then return end --requires 2 or more flowers before can make honey
-      local flower = flowers[math.random(#flowers)]
-      local stacks = inv:get_list('combs')
-      for k, v in pairs(stacks) do
-        if inv:get_stack('combs', k):is_empty() then --then replace that with a full one and reset pro..
-          inv:set_stack('combs',k,'bees:honey_comb')
-          timer:start(1000/#flowers)
+      local hives = bees.count_hives_around(pos)
+      local growth_rate = bees.growth_rate(#flowers, #hives - 1)
+      --print("Hive at " .. pos.x .. ", " .. pos.y .. ", " .. pos.z .. " reporting growth rate: " .. growth_rate)
+      --new mechanics starts here
+      --if the colony is alive, look at growth rate and modify contents
+      if not inv:get_stack('colony', 1):is_empty() then
+        --if growth rate is negative, the hive degrades and dies
+        if growth_rate < 0 then
+          --first try to remove a comb
+          local stacks = inv:get_list('combs')
+          for i = #stacks, 1, -1 do --go backwards for fun
+            if not inv:get_stack('combs', i):is_empty() then
+              inv:set_stack('combs', i, '') --remove one comb
+              meta:set_string('infotext', 'this colony is dying, not enough flowers around')
+              timer:start(1000 / bees_speedup)
+              return
+            end
+          end
+          --if no combs, then remove the colony
+          inv:set_stack('colony', 1, '')
+          meta:set_string('infotext', 'this colony died, not enough flowers around')
+          meta:set_int('agressive', 0)
+          timer:start(1000 / bees_speedup)
           return
+        --if growth rate is positive, the hive growth and swarms split off
+        elseif growth_rate > 0 then
+          --first try to add a comb
+          local stacks = inv:get_list('combs')
+          local comb_counter = 0
+          for i = 1, #stacks do
+            if inv:get_stack('combs', i):is_empty() then
+              inv:set_stack('combs', i, 'bees:honey_comb') --add one comb
+              if comb_counter == 4 then --4 comb slots were full and the last slot has just been filled
+                meta:set_string('infotext', 'this colony is ready to swarm')
+              else
+                meta:set_string('infotext', 'this colony is growing')
+              end
+              timer:start(1000 / (growth_rate * bees_speedup)) --wait less if growth is fast
+              return
+            else
+              comb_counter = comb_counter + 1
+            end
+          end
+          --if no empty space for combs, then take one comb of honey and fly away
+          inv:set_stack('combs', 5, '')
+          bees.swarming(pos)
+          meta:set_string('infotext', 'this colony is growing')--positive growth rate and one empty slot
+          timer:start(1000 / (growth_rate * bees_speedup))
+          return
+        --if growth rate is 0, then nothing happens
+        else
+          meta:set_string('infotext', 'this colony is not growing')
+          timer:start(1000 / bees_speedup)
         end
+      --if the colony is dead, then remove hive
+      else
+        minetest.remove_node(pos)
+        return
       end
-      --what to do if all combs are filled
+      --new mechanics stops here
     end,
     on_construct = function(pos)
-      minetest.get_node(pos).param2 = 0
-      local meta = minetest.get_meta(pos)
-      local inv  = meta:get_inventory()
-      local timer = minetest.get_node_timer(pos)
-      meta:set_int('agressive', 1)
-      timer:start(100+math.random(100))
-      inv:set_size('colony', 1)
-      inv:set_size('combs', 5)
-      inv:set_stack('colony', 1, 'bees:colony')
-      for i=1,math.random(3) do
-        inv:set_stack('combs', i, 'bees:honey_comb')
-      end
+      bees.fill_new_wild_hive(pos)
     end,
     on_punch = function(pos, node, puncher)
       local meta = minetest.get_meta(pos)
@@ -348,6 +559,9 @@
         if inv:contains_item('frames', 'bees:frame_empty') then
           timer:start(30)
           local flowers = bees.count_flowers_around(pos)
+          local hives = bees.count_hives_around(pos)
+          local growth_rate = bees.growth_rate(#flowers, #hives - 1)
+print("Artificial hive at " .. pos.x .. ", " .. pos.y .. ", " .. pos.z .. " reporting growth rate: " .. growth_rate)
           local progress = meta:get_int('progress')
           progress = progress + #flowers
           meta:set_int('progress', progress)
@@ -419,14 +633,14 @@
 
 --ABMS
   minetest.register_abm({ --particles
-    nodenames = {'bees:hive_artificial', 'bees:hive_wild', 'bees:hive_industrial'},
+    nodenames = hive_types,
     interval  = 10,
     chance    = 4,
     action = function(pos)
       minetest.add_particle({
         pos = {x=pos.x, y=pos.y, z=pos.z},
-        vel = {x=(math.random()-0.5)*5,y=(math.random()-0.5)*5,z=(math.random()-0.5)*5},
-        acc = {x=math.random()-0.5,y=math.random()-0.5,z=math.random()-0.5},
+        velocity = {x=(math.random()-0.5)*5,y=(math.random()-0.5)*5,z=(math.random()-0.5)*5},
+        acceleration = {x=math.random()-0.5,y=math.random()-0.5,z=math.random()-0.5},
         expirationtime = math.random(2.5),
         size = math.random(3),
         collisiondetection = true,
@@ -439,12 +653,12 @@
     nodenames = {'group:leaves'},
     neighbors = {''},
     interval = 1600,
-    chance = 20,
+    chance = 50,
     action = function(pos, node, _, _)
-      local p = {x=pos.x, y=pos.y-1, z=pos.z}
+      local p = {x=pos.x, y=pos.y-1, z=pos.z} --spawn under leaves
       if minetest.get_node(p).walkable == false then return end
       local flowers = bees.count_flowers_around(pos)
-      if (#flowers > 2 and minetest.find_node_near(p, 40, 'bees:hive_wild') == nil) then
+      if (#flowers > 2 and minetest.find_node_near(p, 40, hive_types) == nil) then
         print('Wild beehive created at ' .. p.x .. ', ' .. p.y .. ', ' .. p.z)
         minetest.add_node(p, {name='bees:hive_wild'})
       end
@@ -452,7 +666,7 @@
   })
 
   minetest.register_abm({ --spawning bees around bee hive
-    nodenames = {'bees:hive_wild', 'bees:hive_artificial', 'bees:hive_industrial'},
+    nodenames = hive_types,
     neighbors = {'group:flowers', 'group:leaves'},
     interval = 30,
     chance = 4,
@@ -574,8 +788,8 @@
           for i=1,6 do
             minetest.add_particle({
               pos = {x=pos.x+math.random()-0.5, y=pos.y, z=pos.z+math.random()-0.5},
-              vel = {x=0,y=0.5+math.random(),z=0},
-              acc = {x=0,y=0,z=0},
+              velocity = {x=0,y=0.5+math.random(),z=0},
+              acceleration = {x=0,y=0,z=0},
               expirationtime = 2+math.random(2.5),
               size = math.random(3),
               collisiondetection = false,
@@ -709,7 +923,7 @@
           if inv:contains_item('colony', 'bees:colony') then
             if inv:contains_item('frames', 'bees:frame_empty') then
               timer:start(30)
-              local rad  = 10
+              local rad  = bees_radius
               local minp = {x=pos.x-rad, y=pos.y-rad, z=pos.z-rad}
               local maxp = {x=pos.x+rad, y=pos.y+rad, z=pos.z+rad}
               local flowers = minetest.find_nodes_in_area(minp, maxp, 'group:flower')
@@ -791,4 +1005,4 @@
       })
     end
 
-print('[Mod]Bees Loaded!')
+print('[Mod] Bees Loaded!')
