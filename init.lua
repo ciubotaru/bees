@@ -1,8 +1,11 @@
---Bees
-------
---Author	Bas080
---Version	2.2
---License	WTFPL
+--[[
+File name: init.lua
+Project name: Bees, a mod for Minetest game engine
+URL: https://github.com/ciubotaru/bees
+Author: see CONTRIBUTORS
+License: General Public License, version 3 or later
+Date: February 21, 2016
+]]
 
 --VARIABLES
   if minetest.setting_get("bees_radius") == nil then
@@ -458,6 +461,8 @@ print("The swarm built a new wild hive at " .. new_hive_pos.x .. ", " .. new_hiv
         local health = taker:get_hp()
         timer:start(10)
         taker:set_hp(health-2)
+      elseif listname == 'colony' then
+        meta:set_string('infotext', 'the colony is missing')
       end
     end,
     on_metadata_inventory_put = function(pos, listname, index, stack, taker) --restart the colony by adding a queen
@@ -498,11 +503,13 @@ print("The swarm built a new wild hive at " .. new_hive_pos.x .. ", " .. new_hiv
       end
     end,
     after_dig_node = function(pos, oldnode, oldmetadata, user)
-      local wielded if user:get_wielded_item() ~= nil then wielded = user:get_wielded_item() else return end
-      if 'bees:grafting_tool' == wielded:get_name() then 
-        local inv = user:get_inventory()
-        if inv then
-          inv:add_item('main', ItemStack('bees:colony'))
+      local inv = user:get_inventory()
+      if inv then
+        local rand = math.random(5)
+        if rand == 1 then
+          inv:add_item('main', ItemStack('bees:honey_comb')) --20% chance
+        elseif rand == 2 then
+          inv:add_item('main', ItemStack('wax')) --20% chance
         end
       end
     end
