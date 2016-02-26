@@ -22,7 +22,6 @@ Date: February 21, 2016
 
   local bees = {}
   local formspecs = {}
-  local hive_types = {'bees:hive_artificial', 'bees:hive_wild', 'bees:hive_industrial'}
 
   local i18n --internationalization
   if minetest.get_modpath("intllib") then
@@ -73,8 +72,8 @@ Date: February 21, 2016
   function bees.count_hives_around(pos)
     local minp = {x = pos.x - bees_radius, y = pos.y - bees_radius, z = pos.z - bees_radius}
     local maxp = {x = pos.x + bees_radius, y = pos.y + bees_radius, z = pos.z + bees_radius}
-    local nodenames = {'bees:hive_artificial', 'bees:hive_wild', 'bees:hive_industrial'}
-    local hives = minetest.find_nodes_in_area(minp, maxp, nodenames)
+--    local nodenames = {'bees:hive_artificial', 'bees:hive_wild', 'bees:hive_industrial'}
+    local hives = minetest.find_nodes_in_area(minp, maxp, 'group:hives')
     local i
     if not hives then
       return 0
@@ -116,7 +115,7 @@ Date: February 21, 2016
     local new_hive_pos
     --first let's see if we can colonize an abandoned hive...
     --retrieve the list of hives within 2 radii from mother hive
-    local hives = minetest.find_nodes_in_area(minp, maxp, hive_types)
+    local hives = minetest.find_nodes_in_area(minp, maxp, 'group:hives')
     for i = #hives, 1, -1 do --go backwards
       --remove hives that are within 1 radius (too close)
       if hives[i].x > pos.x - bees_radius and hives[i].x < pos.x + bees_radius and hives[i].y > pos.y - bees_radius and hives[i].y < pos.y + bees_radius and hives[i].z > pos.z - bees_radius and hives[i].z < pos.z + bees_radius then
@@ -471,7 +470,7 @@ Date: February 21, 2016
         { items = {'bees:honey_comb'}, rarity = 5}
       }
     },
-    groups = {choppy=2,oddly_breakable_by_hand=2,flammable=3,attached_node=1},
+    groups = {choppy=2,oddly_breakable_by_hand=2,flammable=3,attached_node=1, hives = 1},
     node_box = { --VanessaE's wild hive nodebox contribution
       type = 'fixed',
       fixed = {
@@ -626,7 +625,7 @@ Date: February 21, 2016
     drawtype = 'nodebox',
     paramtype = 'light',
     paramtype2 = 'facedir',
-    groups = {snappy=1,choppy=2,oddly_breakable_by_hand=2,flammable=3,wood=1},
+    groups = {snappy=1,choppy=2,oddly_breakable_by_hand=2,flammable=3,wood=1, hives = 1},
     sounds = default.node_sound_wood_defaults(),
     node_box = {
       type = 'fixed',
@@ -716,7 +715,7 @@ Date: February 21, 2016
 
 --ABMS
   minetest.register_abm({ --particles
-    nodenames = hive_types,
+    nodenames = {'group:hives'},
     interval  = 10,
     chance    = 4,
     action = function(pos)
@@ -741,14 +740,14 @@ Date: February 21, 2016
       local p = {x=pos.x, y=pos.y-1, z=pos.z} --spawn under leaves
       if minetest.get_node(p).walkable == false then return end
       local flowers = bees.count_flowers_around(pos)
-      if (#flowers > 2 and minetest.find_node_near(p, 40, hive_types) == nil) then
+      if (#flowers > 2 and minetest.find_node_near(p, 40, 'group:hives') == nil) then
         minetest.add_node(p, {name='bees:hive_wild'})
       end
     end,
   })
 
   minetest.register_abm({ --spawning bees around bee hive
-    nodenames = hive_types,
+    nodenames = {'group:hives'},
     neighbors = {'group:flowers', 'group:leaves'},
     interval = 30,
     chance = 4,
@@ -931,7 +930,7 @@ Date: February 21, 2016
       description = 'industrial bee hive',
       tiles = { 'bees_hive_industrial.png'},
       paramtype2 = 'facedir',
-      groups = {snappy=1,choppy=2,oddly_breakable_by_hand=2,tubedevice=1,tubedevice_receiver=1},
+      groups = {snappy=1,choppy=2,oddly_breakable_by_hand=2,tubedevice=1,tubedevice_receiver=1, hives = 1},
       sounds = default.node_sound_wood_defaults(),
       tube = {
         insert_object = function(pos, node, stack, direction)
