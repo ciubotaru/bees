@@ -28,7 +28,13 @@ Date: February 21, 2016
   if minetest.get_modpath("intllib") then
     i18n = intllib.Getter()
   else
-    i18n = function(s) return s end
+    i18n = function(s,a,...)
+      a={a,...}
+      local v = s:gsub("@(%d+)", function(n)
+        return a[tonumber(n)]
+      end)
+      return v[1] --do not return the number of substitutions
+    end
   end
 
 --FUNCTIONS
@@ -188,7 +194,7 @@ Date: February 21, 2016
     inv:set_size('combs', 5)
     inv:set_stack('colony', 1, 'bees:colony')
     inv:set_stack('combs', 1, 'bees:honey_comb') --always start with one comb
-    meta:set_string('infotext', i18n('This colony is growing'))
+    meta:set_string('infotext', i18n('this colony is growing'))
     local timer = minetest.get_node_timer(pos)
     timer:start(1000 / bees_speedup)
   end
@@ -198,7 +204,7 @@ Date: February 21, 2016
     local inv  = meta:get_inventory()
     meta:set_int('agressive', 1)
     inv:set_stack('colony', 1, 'bees:colony')
-    meta:set_string('infotext', i18n('The hive has just been recolonized'))
+    meta:set_string('infotext', i18n('the hive has just been recolonized'))
     local timer = minetest.get_node_timer(pos)
     if not timer:is_started() then
       timer:start(1000 / bees_speedup) --set timer for the newly created hive
@@ -239,7 +245,7 @@ Date: February 21, 2016
                 progress = progress + 100 --make it between 0 and 100
                 meta:set_int('progress', progress * 100)
                 inv:set_stack('frames', i ,'bees:frame_empty')
-                meta:set_string('infotext', 'progress: ' .. frames[2] - 1 .. '-' .. progress .. '/100')
+                meta:set_string('infotext', i18n('progress: @1', frames[2] - 1 .. '-' .. progress .. '/100'))
                 timer:start(30 / bees_speedup)
                 return
               end
@@ -247,7 +253,7 @@ Date: February 21, 2016
           end
           --else remove the colony
           inv:set_stack('colony', 1, '')
-          meta:set_string('infotext', 'this colony died, not enough flowers around')
+          meta:set_string('infotext', i18n('this colony died, not enough flowers around'))
           meta:set_int('agressive', 0)
           timer:stop()
           return
@@ -256,7 +262,7 @@ Date: February 21, 2016
           local stacks = inv:get_list('frames')
           local frames = bees.count_frames(stacks)
           meta:set_int('progress', progress * 100)
-          meta:set_string('infotext', 'progress: ' .. frames[2] .. '-' .. progress .. '/100')
+          meta:set_string('infotext', i18n('progress: @1', frames[2] .. '-' .. progress .. '/100'))
           timer:start(30 / bees_speedup)
           return
         end
@@ -271,7 +277,7 @@ Date: February 21, 2016
             for k, v in pairs(stacks) do
               if inv:get_stack('frames', k):get_name() == 'bees:frame_empty' then
                 inv:set_stack('frames', k, 'bees:frame_full')
-                meta:set_string('infotext', 'progress: ' .. frames[2] + 1 .. '+' .. progress ..'/100')
+                meta:set_string('infotext', i18n('progress: @1', frames[2] + 1 .. '+' .. progress ..'/100'))
                 timer:start(30 / bees_speedup)
                 return
               end
@@ -281,7 +287,7 @@ Date: February 21, 2016
             bees.swarming(pos)
             local stacks = inv:get_list('frames') --they are all full
             local frames = bees.count_frames(stacks)
-            meta:set_string('infotext', 'progress: ' .. frames[2] - 1 .. '+' .. progress ..'/100')--positive growth rate and one empty slot
+            meta:set_string('infotext', i18n('progress: @1', frames[2] - 1 .. '+' .. progress ..'/100'))--positive growth rate and one empty slot
             for k, v in pairs(stacks) do
               if inv:get_stack('frames', k):get_name() == 'bees:frame_full' then
                 inv:set_stack('frames', k, 'bees:frame_empty') --clear the last frame
@@ -295,7 +301,7 @@ Date: February 21, 2016
           meta:set_int('progress', progress * 100)
           local stacks = inv:get_list('frames')
           local frames = bees.count_frames(stacks)
-          meta:set_string('infotext', 'progress: ' .. frames[2] .. '+' .. progress ..'/100')
+          meta:set_string('infotext', i18n('progress: @1', frames[2] .. '+' .. progress ..'/100'))
           timer:start(30 / bees_speedup)
           return
         end
