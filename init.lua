@@ -24,6 +24,13 @@ Date: February 21, 2016
   local formspecs = {}
   local hive_types = {'bees:hive_artificial', 'bees:hive_wild', 'bees:hive_industrial'}
 
+  local i18n --internationalization
+  if minetest.get_modpath("intllib") then
+    i18n = intllib.Getter()
+  else
+    i18n = function(s) return s end
+  end
+
 --FUNCTIONS
   function formspecs.hive_wild(pos, grafting)
     local spos = pos.x .. ',' .. pos.y .. ',' ..pos.z
@@ -181,7 +188,7 @@ Date: February 21, 2016
     inv:set_size('combs', 5)
     inv:set_stack('colony', 1, 'bees:colony')
     inv:set_stack('combs', 1, 'bees:honey_comb') --always start with one comb
-    meta:set_string('infotext','This colony is growing')
+    meta:set_string('infotext', i18n('This colony is growing'))
     local timer = minetest.get_node_timer(pos)
     timer:start(1000 / bees_speedup)
   end
@@ -191,7 +198,7 @@ Date: February 21, 2016
     local inv  = meta:get_inventory()
     meta:set_int('agressive', 1)
     inv:set_stack('colony', 1, 'bees:colony')
-    meta:set_string('infotext','The hive has just been recolonized')
+    meta:set_string('infotext', i18n('The hive has just been recolonized'))
     local timer = minetest.get_node_timer(pos)
     if not timer:is_started() then
       timer:start(1000 / bees_speedup) --set timer for the newly created hive
@@ -485,14 +492,14 @@ Date: February 21, 2016
           for i = #stacks, 1, -1 do --go backwards for fun
             if not inv:get_stack('combs', i):is_empty() then
               inv:set_stack('combs', i, '') --remove one comb
-              meta:set_string('infotext', 'this colony is dying, not enough flowers around')
+              meta:set_string('infotext', i18n('this colony is dying, not enough flowers around'))
               timer:start(1000 / bees_speedup)
               return
             end
           end
           --if no combs, then remove the colony
           inv:set_stack('colony', 1, '')
-          meta:set_string('infotext', 'this colony died, not enough flowers around')
+          meta:set_string('infotext', i18n('this colony died, not enough flowers around'))
           meta:set_int('agressive', 0)
           timer:start(1000 / bees_speedup)
           return
@@ -505,9 +512,9 @@ Date: February 21, 2016
             if inv:get_stack('combs', i):is_empty() then
               inv:set_stack('combs', i, 'bees:honey_comb') --add one comb
               if comb_counter == 4 then --4 comb slots were full and the last slot has just been filled
-                meta:set_string('infotext', 'this colony is ready to swarm')
+                meta:set_string('infotext', i18n('this colony is ready to swarm'))
               else
-                meta:set_string('infotext', 'this colony is growing')
+                meta:set_string('infotext', i18n('this colony is growing'))
               end
               timer:start(1000 / (growth_rate * bees_speedup)) --wait less if growth is fast
               return
@@ -518,12 +525,12 @@ Date: February 21, 2016
           --if no empty space for combs, then take one comb of honey and fly away
           inv:set_stack('combs', 5, '')
           bees.swarming(pos)
-          meta:set_string('infotext', 'this colony is growing')--positive growth rate and one empty slot
+          meta:set_string('infotext', i18n('this colony is growing'))--positive growth rate and one empty slot
           timer:start(1000 / (growth_rate * bees_speedup))
           return
         --if growth rate is 0, then nothing happens
         else
-          meta:set_string('infotext', 'this colony is not growing')
+          meta:set_string('infotext', i18n('this colony is not growing'))
           timer:start(1000 / bees_speedup)
         end
       --if the colony is dead, then remove hive
@@ -553,7 +560,7 @@ Date: February 21, 2016
         timer:start(10)
         taker:set_hp(health-2)
       elseif listname == 'colony' then
-        meta:set_string('infotext', 'the colony is missing')
+        meta:set_string('infotext', i18n('the colony is missing'))
         timer:start(1000 / bees_speedup)
       end
     end,
@@ -633,7 +640,7 @@ Date: February 21, 2016
       meta:set_int('agressive', 1)
       inv:set_size('colony', 1)
       inv:set_size('frames', 8)
-      meta:set_string('infotext','requires a bee colony to function')
+      meta:set_string('infotext', i18n('requires a bee colony to function'))
     end,
     on_rightclick = function(pos, node, clicker, itemstack)
       minetest.show_formspec(
@@ -657,7 +664,7 @@ Date: February 21, 2016
       if listname == 'colony' then
         local timer = minetest.get_node_timer(pos)
         local meta = minetest.get_meta(pos)
-        meta:set_string('infotext','requires a bee colony to function')
+        meta:set_string('infotext', i18n('requires a bee colony to function'))
         timer:stop()
       end
     end,
@@ -679,10 +686,10 @@ Date: February 21, 2016
       local timer = minetest.get_node_timer(pos)
       if listname == 'colony' or listname == 'frames' then
         meta:set_string('colony', stack:get_name())
-        meta:set_string('infotext','a colony is inserted, now for the empty frames');
+        meta:set_string('infotext', i18n('a colony is inserted, now for the empty frames'))
         if inv:contains_item('frames', 'bees:frame_empty') then
           timer:start(30 / bees_speedup)
-          meta:set_string('infotext','bees are aclimating');
+          meta:set_string('infotext', i18n('bees are aclimating'))
         end
       end
     end,
@@ -932,7 +939,7 @@ Date: February 21, 2016
               inv:set_stack("frames", i, stack)
               local timer = minetest.get_node_timer(pos)
               timer:start(30 / bees_speedup)
-              meta:set_string('infotext','bees are aclimating')
+              meta:set_string('infotext',i18n('bees are aclimating'))
               return ItemStack("")
             end
           end
@@ -968,7 +975,7 @@ Date: February 21, 2016
         meta:set_int('agressive', 1)
         inv:set_size('colony', 1)
         inv:set_size('frames', 8)
-        meta:set_string('infotext','requires a bee colony to function')
+        meta:set_string('infotext', i18n('requires a bee colony to function'))
       end,
       on_rightclick = function(pos, node, clicker, itemstack)
         minetest.show_formspec(
@@ -992,7 +999,7 @@ Date: February 21, 2016
         if listname == 'colony' then
           local timer = minetest.get_node_timer(pos)
           local meta = minetest.get_meta(pos)
-          meta:set_string('infotext','requires a bee colony to function')
+          meta:set_string('infotext', i18n('requires a bee colony to function'))
           timer:stop()
         end
       end,
@@ -1014,10 +1021,10 @@ Date: February 21, 2016
         local timer = minetest.get_node_timer(pos)
         if listname == 'colony' or listname == 'frames' then
           meta:set_string('colony', stack:get_name())
-          meta:set_string('infotext','a colony is inserted, now for the empty frames');
+          meta:set_string('infotext', i18n('a colony is inserted, now for the empty frames'))
           if inv:contains_item('frames', 'bees:frame_empty') then
             timer:start(30 / bees_speedup)
-            meta:set_string('infotext','bees are aclimating');
+            meta:set_string('infotext', i18n('bees are aclimating'))
           end
         end
       end,
