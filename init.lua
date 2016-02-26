@@ -75,13 +75,11 @@ Date: February 21, 2016
   end
 
   function bees.growth_rate(nr_flowers, nr_hives)
-    local growth_rate = (nr_flowers - 2) - nr_hives * 4
+    local growth_rate = nr_flowers / (nr_hives + 1) / 2 - 1
     if growth_rate > 4 then
       return 4 --can not grow faster than that
-    elseif growth_rate < -1 then
-      return -1 --can not disappear faster than that
     end
-    return growth_rate --an integer between -1 and 4
+    return growth_rate --a number between -1 and 4
   end
 
   function bees.count_honey_combs(inv)
@@ -96,7 +94,6 @@ Date: February 21, 2016
   end
 
   function bees.swarming(pos) --splitting off a new wild hive from an existing one
---print("A swarm left its hive at " .. pos.x .. "," .. pos.y .. "," .. pos.z)
     local minp = {x = pos.x - bees_radius * 2, y = pos.y - bees_radius * 2, z = pos.z - bees_radius * 2}
     local maxp = {x = pos.x + bees_radius * 2, y = pos.y + bees_radius * 2, z = pos.z + bees_radius * 2}
     local i
@@ -115,7 +112,7 @@ Date: February 21, 2016
       elseif bees.is_hive_alive(hives[i]) then
         table.remove(hives, i)
       --then remove hives with non-positive growth rate
-      elseif bees.growth_rate(#bees.count_flowers_around(hives[i]),  #bees.count_hives_around(hives[i])) < 1 then
+      elseif bees.growth_rate(#bees.count_flowers_around(hives[i]),  #bees.count_hives_around(hives[i]) + 1) <= 0 then
         table.remove(hives, i)
       end
     end
@@ -124,17 +121,14 @@ Date: February 21, 2016
       --chose at random
       local newpos = hives[math.random(1, #hives)]
       bees.recolonize_hive(newpos)
-print("The swarm from " .. pos.x .. "," .. pos.y .. "," .. pos.z .. " recolonized a hive at " .. newpos.x .. "," .. newpos.y .. "," .. newpos.z)
       return true
     end
     --if we are here, the swarm found no suitable hives for recolonization
---print("The swarm did not find any free hives")
     --let's try to build a wild hive
     --retrieve the list of leaves within 2 radii from mother hive
     local leaves = minetest.find_nodes_in_area(minp, maxp, 'group:leaves')
     --quit if no leaves at all
     if leaves == nil then
---print("The swarm found no leaves. Died")
       return true
     end
     for i = #leaves, 1, -1 do --go backwards
@@ -143,9 +137,7 @@ print("The swarm from " .. pos.x .. "," .. pos.y .. "," .. pos.z .. " recolonize
         table.remove(leaves, i)
       end
     end
---print("The swarm found " .. #leaves .. " leaves")
     if #leaves < 1 then
---print("The swarm from " .. pos.x .. "," .. pos.y .. "," .. pos.z .. " died: no leaves to hang a hive")
       return false --the swarm could not find any leaves
     end
     local spaces = {}
@@ -158,17 +150,15 @@ print("The swarm from " .. pos.x .. "," .. pos.y .. "," .. pos.z .. " recolonize
       end
     end
     if #spaces < 1 then
---print("The swarm from " .. pos.x .. "," .. pos.y .. "," .. pos.z .. " died.")
       return false --the swarm could not find any free space
     end
---print("Swarm found " .. #spaces .. " free places to create a hive")
     --iterate among good spaces and remove ones with non-positive growth_rate
     for i = #spaces, 1, -1 do
       new_hive_pos = {x = spaces[i].x, y = spaces[i].y, z = spaces[i].z}
       hives_around = bees.count_hives_around(new_hive_pos)
       flowers_around = bees.count_flowers_around(new_hive_pos)
-      growth_rate = bees.growth_rate(#flowers_around, #hives_around)
-      if growth_rate < 1 then
+      growth_rate = bees.growth_rate(#flowers_around, #hives_around + 1)
+      if growth_rate <= 0 then
         table.remove(spaces, i)
       end
     end
@@ -177,10 +167,8 @@ print("The swarm from " .. pos.x .. "," .. pos.y .. "," .. pos.z .. " recolonize
       new_hive_pos = spaces[math.random(1, #spaces)]
       minetest.set_node(new_hive_pos, {name = 'bees:hive_wild'})
       bees.fill_new_wild_hive(new_hive_pos)
-print("The swarm built a new wild hive at " .. new_hive_pos.x .. ", " .. new_hive_pos.y .. ", " .. new_hive_pos.z)
       return true
     end
---print("The swarm from " .. pos.x .. "," .. pos.y .. "," .. pos.z .. " died.")
     return false --the swarm could not find free space with good growth rate
   end
 
@@ -218,6 +206,110 @@ print("The swarm built a new wild hive at " .. new_hive_pos.x .. ", " .. new_hiv
     else
       return true
     end
+  end
+
+  function bees.hive_on_timer(pos)
+    local meta = minetest.get_meta(pos)
+    local inv = meta:get_inventory()
+    local timer = minetest.get_node_timer(pos)
+    if inv:contains_item('colony', 'bees:colony') then
+      local i
+      local progress = meta:get_int('progress') / 100
+      local flowers_around = bees.count_flowers_around(pos)
+      local hives_around = bees.count_hives_around(pos)
+      local growth_rate = bees.growth_rate(#flowers_around, #hives_around)
+      local growth = math.floor(growth_rate * 100 + 0.5) / 100 --2 digits after decimal
+      progress = progress + growth
+      --if growth rate is negative, the hive degrades and dies
+      if growth_rate < 0 then
+        --if progress is below zero, then try to remove honey from a frame
+        if progress <= 0 then
+          if inv:contains_item('frames', 'bees:frame_full') then
+            local stacks = inv:get_list('frames')
+            local frames = bees.count_frames(stacks)
+            for i = #stacks, 1, -1 do --go backwards
+              if inv:get_stack('frames', i):get_name() == 'bees:frame_full' then
+                progress = progress + 100 --make it between 0 and 100
+                meta:set_int('progress', progress * 100)
+                inv:set_stack('frames', i ,'bees:frame_empty')
+                meta:set_string('infotext', 'progress: ' .. frames[2] - 1 .. '-' .. progress .. '/100')
+                timer:start(30 / bees_speedup)
+                return
+              end
+            end
+          end
+          --else remove the colony
+          inv:set_stack('colony', 1, '')
+          meta:set_string('infotext', 'this colony died, not enough flowers around')
+          meta:set_int('agressive', 0)
+          timer:stop()
+          return
+        --if progress is positive, subtract the negative growth
+        else
+          local stacks = inv:get_list('frames')
+          local frames = bees.count_frames(stacks)
+          meta:set_int('progress', progress * 100)
+          meta:set_string('infotext', 'progress: ' .. frames[2] .. '-' .. progress .. '/100')
+          timer:start(30 / bees_speedup)
+          return
+        end
+      --if positive growth, compute progress, add honey etc
+      elseif growth_rate > 0 then
+        if progress > 100 then
+          progress = progress - 100
+          meta:set_int('progress', progress * 100)
+          if inv:contains_item('frames', 'bees:frame_empty') then
+            local stacks = inv:get_list('frames')
+            local frames = bees.count_frames(stacks)
+            for k, v in pairs(stacks) do
+              if inv:get_stack('frames', k):get_name() == 'bees:frame_empty' then
+                inv:set_stack('frames', k, 'bees:frame_full')
+                meta:set_string('infotext', 'progress: ' .. frames[2] + 1 .. '+' .. progress ..'/100')
+                timer:start(30 / bees_speedup)
+                return
+              end
+            end
+          --if no empty frames, swarm!!!
+          else
+            bees.swarming(pos)
+            local stacks = inv:get_list('frames') --they are all full
+            local frames = bees.count_frames(stacks)
+            meta:set_string('infotext', 'progress: ' .. frames[2] - 1 .. '+' .. progress ..'/100')--positive growth rate and one empty slot
+            for k, v in pairs(stacks) do
+              if inv:get_stack('frames', k):get_name() == 'bees:frame_full' then
+                inv:set_stack('frames', k, 'bees:frame_empty') --clear the last frame
+                timer:start(30 / bees_speedup)
+                return
+              end
+            end
+          end
+        --if progress still under 100, just count full frames and update infotext
+        else
+          meta:set_int('progress', progress * 100)
+          local stacks = inv:get_list('frames')
+          local frames = bees.count_frames(stacks)
+          meta:set_string('infotext', 'progress: ' .. frames[2] .. '+' .. progress ..'/100')
+          timer:start(30 / bees_speedup)
+          return
+        end
+      end
+      --if growth is zero, reset timer and do nothing
+      timer:start(30 / bees_speedup)
+      return
+    end
+  end
+
+  function bees.count_frames(stack)
+    local full_frames = 0
+    local empty_frames = 0
+    for i = 1, #stack do
+      if stack[i]:get_name() == 'bees:frame_full' then
+        full_frames = full_frames + 1
+      elseif stack[i]:get_name() == 'bees:frame_empty' then
+        empty_frames = empty_frames + 1
+      end
+    end
+    return {full_frames + empty_frames, full_frames, empty_frames}
   end
 
 --NODES
@@ -382,8 +474,7 @@ print("The swarm built a new wild hive at " .. new_hive_pos.x .. ", " .. new_hiv
       local timer= minetest.get_node_timer(pos)
       local flowers = bees.count_flowers_around(pos)
       local hives = bees.count_hives_around(pos)
-      local growth_rate = bees.growth_rate(#flowers, #hives - 1)
-      --print("Hive at " .. pos.x .. ", " .. pos.y .. ", " .. pos.z .. " reporting growth rate: " .. growth_rate)
+      local growth_rate = bees.growth_rate(#flowers, #hives)
       --new mechanics starts here
       --if the colony is alive, look at growth rate and modify contents
       if not inv:get_stack('colony', 1):is_empty() then
@@ -463,6 +554,7 @@ print("The swarm built a new wild hive at " .. new_hive_pos.x .. ", " .. new_hiv
         taker:set_hp(health-2)
       elseif listname == 'colony' then
         meta:set_string('infotext', 'the colony is missing')
+        timer:start(1000 / bees_speedup)
       end
     end,
     on_metadata_inventory_put = function(pos, listname, index, stack, taker) --restart the colony by adding a queen
@@ -558,37 +650,8 @@ print("The swarm built a new wild hive at " .. new_hive_pos.x .. ", " .. new_hiv
         meta:set_int('agressive', 1)
       end
     end,
-    on_timer = function(pos,elapsed)
-      local meta = minetest.get_meta(pos)
-      local inv = meta:get_inventory()
-      local timer = minetest.get_node_timer(pos)
-      if inv:contains_item('colony', 'bees:colony') then
-        if inv:contains_item('frames', 'bees:frame_empty') then
-          timer:start(30)
-          local flowers = bees.count_flowers_around(pos)
-          local hives = bees.count_hives_around(pos)
-          local growth_rate = bees.growth_rate(#flowers, #hives - 1)
-print("Artificial hive at " .. pos.x .. ", " .. pos.y .. ", " .. pos.z .. " reporting growth rate: " .. growth_rate)
-          local progress = meta:get_int('progress')
-          progress = progress + #flowers
-          meta:set_int('progress', progress)
-          if progress > 1000 then
-            local stacks = inv:get_list('frames')
-            for k, v in pairs(stacks) do
-              if inv:get_stack('frames', k):get_name() == 'bees:frame_empty' then
-                meta:set_int('progress', 0)
-                inv:set_stack('frames',k,'bees:frame_full')
-                return
-              end
-            end
-          else
-            meta:set_string('infotext', 'progress: '..progress..'+'..#flowers..'/1000')
-          end
-        else
-          meta:set_string('infotext', 'does not have empty frame(s)')
-          timer:stop()
-        end
-      end
+    on_timer = function(pos)
+      bees.hive_on_timer(pos)
     end,
     on_metadata_inventory_take = function(pos, listname, index, stack, player)
       if listname == 'colony' then
@@ -618,7 +681,7 @@ print("Artificial hive at " .. pos.x .. ", " .. pos.y .. ", " .. pos.z .. " repo
         meta:set_string('colony', stack:get_name())
         meta:set_string('infotext','a colony is inserted, now for the empty frames');
         if inv:contains_item('frames', 'bees:frame_empty') then
-          timer:start(30)
+          timer:start(30 / bees_speedup)
           meta:set_string('infotext','bees are aclimating');
         end
       end
@@ -666,7 +729,6 @@ print("Artificial hive at " .. pos.x .. ", " .. pos.y .. ", " .. pos.z .. " repo
       if minetest.get_node(p).walkable == false then return end
       local flowers = bees.count_flowers_around(pos)
       if (#flowers > 2 and minetest.find_node_near(p, 40, hive_types) == nil) then
-        print('Wild beehive created at ' .. p.x .. ', ' .. p.y .. ', ' .. p.z)
         minetest.add_node(p, {name='bees:hive_wild'})
       end
     end,
@@ -824,192 +886,163 @@ print("Artificial hive at " .. pos.x .. ", " .. pos.y .. ", " .. pos.z .. " repo
 
 --COMPATIBILTY --remove after all has been updated
   --ALIASES
-    minetest.register_alias('bees:honey_extractor', 'bees:extractor')
+  minetest.register_alias('bees:honey_extractor', 'bees:extractor')
   --BACKWARDS COMPATIBILITY WITH OLDER VERSION  
-    minetest.register_alias('bees:queen', 'bees:colony')
-    minetest.register_alias('bees:honey_bottle', 'bees:bottle_honey')
-    minetest.register_abm({
-      nodenames = {'bees:hive', 'bees:hive_artificial_inhabited'},
-      interval = 0,
-      chance = 1,
-      action = function(pos, node)
-        if node.name == 'bees:hive' then
-          minetest.set_node(pos, { name = 'bees:hive_wild' })
-          local meta = minetest.get_meta(pos)
-          local inv  = meta:get_inventory()
-          inv:set_stack('colony', 1, 'bees:colony')
-        end
-        if node.name == 'bees:hive_artificial_inhabited' then
-          minetest.set_node(pos, { name = 'bees:hive_artificial' })
-          local meta = minetest.get_meta(pos)
-          local inv  = meta:get_inventory()
-          inv:set_stack('colony', 1, 'bees:colony')
-          local timer = minetest.get_node_timer(pos)
-          timer:start(60)
-        end
-      end,
-    })
+  minetest.register_alias('bees:queen', 'bees:colony')
+  minetest.register_alias('bees:honey_bottle', 'bees:bottle_honey')
+  minetest.register_abm({
+    nodenames = {'bees:hive', 'bees:hive_artificial_inhabited'},
+    interval = 0,
+    chance = 1,
+    action = function(pos, node)
+      if node.name == 'bees:hive' then
+        minetest.set_node(pos, { name = 'bees:hive_wild' })
+        local meta = minetest.get_meta(pos)
+        local inv  = meta:get_inventory()
+        inv:set_stack('colony', 1, 'bees:colony')
+      end
+      if node.name == 'bees:hive_artificial_inhabited' then
+        minetest.set_node(pos, { name = 'bees:hive_artificial' })
+        local meta = minetest.get_meta(pos)
+        local inv  = meta:get_inventory()
+        inv:set_stack('colony', 1, 'bees:colony')
+        local timer = minetest.get_node_timer(pos)
+        timer:start(60)
+      end
+    end,
+  })
 
   --PIPEWORKS
-    if minetest.get_modpath("pipeworks") then
-      minetest.register_node('bees:hive_industrial', {
-        description = 'industrial bee hive',
-        tiles = { 'bees_hive_industrial.png'},
-        paramtype2 = 'facedir',
-        groups = {snappy=1,choppy=2,oddly_breakable_by_hand=2,tubedevice=1,tubedevice_receiver=1},
-        sounds = default.node_sound_wood_defaults(),
-        tube = {
-          insert_object = function(pos, node, stack, direction)
-            local meta = minetest.get_meta(pos)
-            local inv = meta:get_inventory()
-            if stack:get_name() ~= "bees:frame_empty" or stack:get_count() > 1 then
-              return stack
-            end
-            for i = 1, 8 do
-              if inv:get_stack("frames", i):is_empty() then
-                inv:set_stack("frames", i, stack)
-                local timer = minetest.get_node_timer(pos)
-                timer:start(30)
-                meta:set_string('infotext','bees are aclimating')
-                return ItemStack("")
-              end
-            end
+  if minetest.get_modpath("pipeworks") then
+    minetest.register_node('bees:hive_industrial', {
+      description = 'industrial bee hive',
+      tiles = { 'bees_hive_industrial.png'},
+      paramtype2 = 'facedir',
+      groups = {snappy=1,choppy=2,oddly_breakable_by_hand=2,tubedevice=1,tubedevice_receiver=1},
+      sounds = default.node_sound_wood_defaults(),
+      tube = {
+        insert_object = function(pos, node, stack, direction)
+          local meta = minetest.get_meta(pos)
+          local inv = meta:get_inventory()
+          if stack:get_name() ~= "bees:frame_empty" or stack:get_count() > 1 then
             return stack
-          end,
-          can_insert = function(pos,node,stack,direction)
-            local meta = minetest.get_meta(pos)
-            local inv = meta:get_inventory()
-            if stack:get_name() ~= "bees:frame_empty" or stack:get_count() > 1 then
-              return false
+          end
+          for i = 1, 8 do
+            if inv:get_stack("frames", i):is_empty() then
+              inv:set_stack("frames", i, stack)
+              local timer = minetest.get_node_timer(pos)
+              timer:start(30 / bees_speedup)
+              meta:set_string('infotext','bees are aclimating')
+              return ItemStack("")
             end
-            for i = 1, 8 do
-              if inv:get_stack("frames", i):is_empty() then
-                return true
-              end
-            end
+          end
+          return stack
+        end,
+        can_insert = function(pos,node,stack,direction)
+          local meta = minetest.get_meta(pos)
+          local inv = meta:get_inventory()
+          if stack:get_name() ~= "bees:frame_empty" or stack:get_count() > 1 then
             return false
-          end,
-          can_remove = function(pos,node,stack,direction)
-            if stack:get_name() == "bees:frame_full" then
-              return 1
-            else
-              return 0
-            end
-          end,
-          input_inventory = "frames",
-          connect_sides = {left=1, right=1, back=1, front=1, bottom=1, top=1}
-        },
-        on_construct = function(pos)
-          local timer = minetest.get_node_timer(pos)
-          local meta = minetest.get_meta(pos)
-          local inv = meta:get_inventory()
-          meta:set_int('agressive', 1)
-          inv:set_size('colony', 1)
-          inv:set_size('frames', 8)
-          meta:set_string('infotext','requires a bee colony to function')
-        end,
-        on_rightclick = function(pos, node, clicker, itemstack)
-          minetest.show_formspec(
-            clicker:get_player_name(),
-            'bees:hive_artificial',
-            formspecs.hive_artificial(pos)
-          )
-          local meta = minetest.get_meta(pos)
-          local inv  = meta:get_inventory()
-          if meta:get_int('agressive') == 1 and inv:contains_item('colony', 'bees:colony') then
-            local health = clicker:get_hp()
-            clicker:set_hp(health-4)
-          else
-            meta:set_int('agressive', 1)
           end
-        end,
-        on_timer = function(pos,elapsed)
-          local meta = minetest.get_meta(pos)
-          local inv = meta:get_inventory()
-          local timer = minetest.get_node_timer(pos)
-          if inv:contains_item('colony', 'bees:colony') then
-            if inv:contains_item('frames', 'bees:frame_empty') then
-              timer:start(30)
-              local rad  = bees_radius
-              local minp = {x=pos.x-rad, y=pos.y-rad, z=pos.z-rad}
-              local maxp = {x=pos.x+rad, y=pos.y+rad, z=pos.z+rad}
-              local flowers = minetest.find_nodes_in_area(minp, maxp, 'group:flower')
-              local progress = meta:get_int('progress')
-              progress = progress + #flowers
-              meta:set_int('progress', progress)
-              if progress > 1000 then
-                local stacks = inv:get_list('frames')
-                for k, v in pairs(stacks) do
-                  if inv:get_stack('frames', k):get_name() == 'bees:frame_empty' then
-                    meta:set_int('progress', 0)
-                    inv:set_stack('frames',k,'bees:frame_full')
-                    return
-                  end
-                end
-              else
-                meta:set_string('infotext', 'progress: '..progress..'+'..#flowers..'/1000')
-              end
-            else
-              meta:set_string('infotext', 'does not have empty frame(s)')
-              timer:stop()
+          for i = 1, 8 do
+            if inv:get_stack("frames", i):is_empty() then
+              return true
             end
           end
+          return false
         end,
-        on_metadata_inventory_take = function(pos, listname, index, stack, player)
-          if listname == 'colony' then
-            local timer = minetest.get_node_timer(pos)
-            local meta = minetest.get_meta(pos)
-            meta:set_string('infotext','requires a bee colony to function')
-            timer:stop()
-          end
-        end,
-        allow_metadata_inventory_move = function(pos, from_list, from_index, to_list, to_index, count, player)
-          local inv = minetest.get_meta(pos):get_inventory()
-          if from_list == to_list then 
-            if inv:get_stack(to_list, to_index):is_empty() then
-              return 1
-            else
-              return 0
-            end
+        can_remove = function(pos,node,stack,direction)
+          if stack:get_name() == "bees:frame_full" then
+            return 1
           else
             return 0
           end
         end,
-        on_metadata_inventory_put = function(pos, listname, index, stack, player)
-          local meta = minetest.get_meta(pos)
-          local inv = meta:get_inventory()
+        input_inventory = "frames",
+        connect_sides = {left=1, right=1, back=1, front=1, bottom=1, top=1}
+      },
+      on_construct = function(pos)
+        local timer = minetest.get_node_timer(pos)
+        local meta = minetest.get_meta(pos)
+        local inv = meta:get_inventory()
+        meta:set_int('agressive', 1)
+        inv:set_size('colony', 1)
+        inv:set_size('frames', 8)
+        meta:set_string('infotext','requires a bee colony to function')
+      end,
+      on_rightclick = function(pos, node, clicker, itemstack)
+        minetest.show_formspec(
+          clicker:get_player_name(),
+          'bees:hive_artificial',
+          formspecs.hive_artificial(pos)
+        )
+        local meta = minetest.get_meta(pos)
+        local inv  = meta:get_inventory()
+        if meta:get_int('agressive') == 1 and inv:contains_item('colony', 'bees:colony') then
+          local health = clicker:get_hp()
+          clicker:set_hp(health-4)
+        else
+          meta:set_int('agressive', 1)
+        end
+      end,
+      on_timer = function(pos)
+        bees.hive_on_timer(pos)
+      end,
+      on_metadata_inventory_take = function(pos, listname, index, stack, player)
+        if listname == 'colony' then
           local timer = minetest.get_node_timer(pos)
-          if listname == 'colony' or listname == 'frames' then
-            meta:set_string('colony', stack:get_name())
-            meta:set_string('infotext','a colony is inserted, now for the empty frames');
-            if inv:contains_item('frames', 'bees:frame_empty') then
-              timer:start(30)
-              meta:set_string('infotext','bees are aclimating');
-            end
+          local meta = minetest.get_meta(pos)
+          meta:set_string('infotext','requires a bee colony to function')
+          timer:stop()
+        end
+      end,
+      allow_metadata_inventory_move = function(pos, from_list, from_index, to_list, to_index, count, player)
+        local inv = minetest.get_meta(pos):get_inventory()
+        if from_list == to_list then 
+          if inv:get_stack(to_list, to_index):is_empty() then
+            return 1
+          else
+            return 0
           end
-        end,
-        allow_metadata_inventory_put = function(pos, listname, index, stack, player)
-          if not minetest.get_meta(pos):get_inventory():get_stack(listname, index):is_empty() then return 0 end
-          if listname == 'colony' then
-            if stack:get_name():match('bees:colony*') then
-              return 1
-            end
-          elseif listname == 'frames' then
-            if stack:get_name() == ('bees:frame_empty') then
-              return 1
-            end
-          end
+        else
           return 0
-        end,
-      })
-      minetest.register_craft({
-        output = 'bees:hive_industrial',
-        recipe = {
-          {'default:steel_ingot','homedecor:plastic_sheeting','default:steel_ingot'},
-          {'pipeworks:tube_1','bees:hive_artificial','pipeworks:tube_1'},
-          {'default:steel_ingot','homedecor:plastic_sheeting','default:steel_ingot'},
-        }
-      })
-    end
+        end
+      end,
+      on_metadata_inventory_put = function(pos, listname, index, stack, player)
+        local meta = minetest.get_meta(pos)
+        local inv = meta:get_inventory()
+        local timer = minetest.get_node_timer(pos)
+        if listname == 'colony' or listname == 'frames' then
+          meta:set_string('colony', stack:get_name())
+          meta:set_string('infotext','a colony is inserted, now for the empty frames');
+          if inv:contains_item('frames', 'bees:frame_empty') then
+            timer:start(30 / bees_speedup)
+            meta:set_string('infotext','bees are aclimating');
+          end
+        end
+      end,
+      allow_metadata_inventory_put = function(pos, listname, index, stack, player)
+        if not minetest.get_meta(pos):get_inventory():get_stack(listname, index):is_empty() then return 0 end
+        if listname == 'colony' then
+          if stack:get_name():match('bees:colony*') then
+            return 1
+          end
+        elseif listname == 'frames' then
+          if stack:get_name() == ('bees:frame_empty') then
+            return 1
+          end
+        end
+        return 0
+      end,
+    })
+    minetest.register_craft({
+      output = 'bees:hive_industrial',
+      recipe = {
+        {'default:steel_ingot','homedecor:plastic_sheeting','default:steel_ingot'},
+        {'pipeworks:tube_1','bees:hive_artificial','pipeworks:tube_1'},
+        {'default:steel_ingot','homedecor:plastic_sheeting','default:steel_ingot'},
+      }
+    })
+  end
 
 print('[Mod] Bees Loaded!')
