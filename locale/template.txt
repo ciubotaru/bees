@@ -1,0 +1,11 @@
+a colony is inserted, now for the empty frames =
+bees are aclimating =
+progress: @1 =
+requires a bee colony to function =
+the colony is missing =
+the hive has just been recolonized =
+this colony died, not enough flowers around =
+this colony is dying, not enough flowers around =
+this colony is growing =
+this colony is not growing =
+this colony is ready to swarm =
