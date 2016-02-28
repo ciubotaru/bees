@@ -691,7 +691,6 @@ bees_version = '3.0-dev'
       local inv = meta:get_inventory()
       local timer = minetest.get_node_timer(pos)
       if listname == 'colony' or listname == 'frames' then
-        meta:set_string('colony', stack:get_name())
         meta:set_string('infotext', i18n('a colony is inserted, now for the empty frames'))
         if inv:contains_item('frames', 'bees:frame_empty') then
           timer:start(30 / bees_speedup)
@@ -1026,7 +1025,6 @@ bees_version = '3.0-dev'
         local inv = meta:get_inventory()
         local timer = minetest.get_node_timer(pos)
         if listname == 'colony' or listname == 'frames' then
-          meta:set_string('colony', stack:get_name())
           meta:set_string('infotext', i18n('a colony is inserted, now for the empty frames'))
           if inv:contains_item('frames', 'bees:frame_empty') then
             timer:start(30 / bees_speedup)
