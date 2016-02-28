@@ -194,7 +194,7 @@ bees_version = '3.0-dev'
     inv:set_size('combs', 5)
     inv:set_stack('colony', 1, 'bees:colony')
     inv:set_stack('combs', 1, 'bees:honey_comb') --always start with one comb
-    meta:set_string('infotext', i18n('this colony is growing'))
+    meta:set_string('infotext', i18n('colony is growing'))
     local timer = minetest.get_node_timer(pos)
     timer:start(1000 / bees_speedup)
   end
@@ -204,7 +204,7 @@ bees_version = '3.0-dev'
     local inv  = meta:get_inventory()
     meta:set_int('agressive', 1)
     inv:set_stack('colony', 1, 'bees:colony')
-    meta:set_string('infotext', i18n('the hive has just been recolonized'))
+    meta:set_string('infotext', i18n('hive has just been recolonized'))
     local timer = minetest.get_node_timer(pos)
     if not timer:is_started() then
       timer:start(1000 / bees_speedup) --set timer for the newly created hive
@@ -253,7 +253,7 @@ bees_version = '3.0-dev'
           end
           --else remove the colony
           inv:set_stack('colony', 1, '')
-          meta:set_string('infotext', i18n('this colony died, not enough flowers around'))
+          meta:set_string('infotext', i18n('colony died, not enough flowers around'))
           meta:set_int('agressive', 0)
           timer:stop()
           return
@@ -327,7 +327,7 @@ bees_version = '3.0-dev'
 
 --NODES
   minetest.register_node('bees:extractor', {
-    description = 'honey extractor',
+    description = i18n('Honey extractor'),
     tiles = {"bees_extractor.png", "bees_extractor.png", "bees_extractor.png", "bees_extractor.png", "bees_extractor.png", "bees_extractor_front.png"},
     paramtype2 = "facedir",
     groups = {choppy=2,oddly_breakable_by_hand=2,tubedevice=1,tubedevice_receiver=1},
@@ -439,7 +439,7 @@ bees_version = '3.0-dev'
   })
 
   minetest.register_node('bees:bees', {
-    description = 'flying bees',
+    description = i18n('Flying bees'),
     drawtype = 'plantlike',
     paramtype = 'light',
     groups = { not_in_creative_inventory=1 },
@@ -460,7 +460,7 @@ bees_version = '3.0-dev'
   })
 
   minetest.register_node('bees:hive_wild', {
-    description = 'wild bee hive',
+    description = i18n('Wild bee hive'),
     tiles = {'bees_hive_wild.png','bees_hive_wild.png','bees_hive_wild.png', 'bees_hive_wild.png', 'bees_hive_wild_bottom.png'}, --Neuromancer's base texture
     drawtype = 'nodebox',
     paramtype = 'light',
@@ -498,14 +498,14 @@ bees_version = '3.0-dev'
           for i = #stacks, 1, -1 do --go backwards for fun
             if not inv:get_stack('combs', i):is_empty() then
               inv:set_stack('combs', i, '') --remove one comb
-              meta:set_string('infotext', i18n('this colony is dying, not enough flowers around'))
+              meta:set_string('infotext', i18n('colony is dying, not enough flowers around'))
               timer:start(1000 / bees_speedup)
               return
             end
           end
           --if no combs, then remove the colony
           inv:set_stack('colony', 1, '')
-          meta:set_string('infotext', i18n('this colony died, not enough flowers around'))
+          meta:set_string('infotext', i18n('colony died, not enough flowers around'))
           meta:set_int('agressive', 0)
           timer:start(1000 / bees_speedup)
           return
@@ -518,9 +518,9 @@ bees_version = '3.0-dev'
             if inv:get_stack('combs', i):is_empty() then
               inv:set_stack('combs', i, 'bees:honey_comb') --add one comb
               if comb_counter == 4 then --4 comb slots were full and the last slot has just been filled
-                meta:set_string('infotext', i18n('this colony is ready to swarm'))
+                meta:set_string('infotext', i18n('colony is ready to swarm'))
               else
-                meta:set_string('infotext', i18n('this colony is growing'))
+                meta:set_string('infotext', i18n('colony is growing'))
               end
               timer:start(1000 / (growth_rate * bees_speedup)) --wait less if growth is fast
               return
@@ -531,12 +531,12 @@ bees_version = '3.0-dev'
           --if no empty space for combs, then take one comb of honey and fly away
           inv:set_stack('combs', 5, '')
           bees.swarming(pos)
-          meta:set_string('infotext', i18n('this colony is growing'))--positive growth rate and one empty slot
+          meta:set_string('infotext', i18n('colony is growing'))--positive growth rate and one empty slot
           timer:start(1000 / (growth_rate * bees_speedup))
           return
         --if growth rate is 0, then nothing happens
         else
-          meta:set_string('infotext', i18n('this colony is not growing'))
+          meta:set_string('infotext', i18n('colony is not growing'))
           timer:start(1000 / bees_speedup)
         end
       --if the colony is dead, then remove hive
@@ -566,7 +566,7 @@ bees_version = '3.0-dev'
         timer:start(10)
         taker:set_hp(health-2)
       elseif listname == 'colony' then
-        meta:set_string('infotext', i18n('the colony is missing'))
+        meta:set_string('infotext', i18n('colony is missing'))
         timer:start(1000 / bees_speedup)
       end
     end,
@@ -575,11 +575,11 @@ bees_version = '3.0-dev'
       local hives = bees.count_hives_around(pos)
       local growth_rate = bees.growth_rate(#flowers, #hives)
       if growth_rate < 0 then
-        meta:set_string('infotext', i18n('the colony is dying, not enough flowers around'))
+        meta:set_string('infotext', i18n('colony is dying, not enough flowers around'))
       elseif growth_rate > 0 then
-        meta:set_string('infotext', i18n('this colony is growing'))
+        meta:set_string('infotext', i18n('colony is growing'))
       else
-        meta:set_string('infotext', i18n('this colony is not growing'))
+        meta:set_string('infotext', i18n('colony is not growing'))
       end
       local timer = minetest.get_node_timer(pos)
       if not timer:is_started() then
@@ -631,7 +631,7 @@ bees_version = '3.0-dev'
   })
 
   minetest.register_node('bees:hive_artificial', {
-    description = 'bee hive',
+    description = i18n('Bee hive'),
     tiles = {'default_wood.png','default_wood.png','default_wood.png', 'default_wood.png','default_wood.png','bees_hive_artificial.png'},
     drawtype = 'nodebox',
     paramtype = 'light',
@@ -705,7 +705,7 @@ bees_version = '3.0-dev'
         local hives = bees.count_hives_around(pos)
         local growth_rate = bees.growth_rate(#flowers, #hives)
         if growth_rate < 0 then --warn the player that the colony will die soon
-          meta:set_string('infotext', i18n('the colony is dying, not enough flowers around'))
+          meta:set_string('infotext', i18n('colony is dying, not enough flowers around'))
           timer:start(1000 / bees_speedup)
           return
         else --colony survival is assured, let's look at frames
@@ -806,39 +806,39 @@ bees_version = '3.0-dev'
 
 --ITEMS
   minetest.register_craftitem('bees:frame_empty', {
-    description = 'empty hive frame',
+    description = i18n('Hive frame'),
     inventory_image = 'bees_frame_empty.png',
     stack_max = 24,
   })
 
   minetest.register_craftitem('bees:frame_full', {
-    description = 'filled hive frame',
+    description = i18n('Hive frame with honey'),
     inventory_image = 'bees_frame_full.png',
     stack_max = 12,
   })
 
   minetest.register_craftitem('bees:bottle_honey', {
-    description = 'honey bottle',
+    description = i18n('Bottle with honey'),
     inventory_image = 'bees_bottle_honey.png',
     stack_max = 12,
     on_use = minetest.item_eat(3, "vessels:glass_bottle"),
   })
   
   minetest.register_craftitem('bees:wax', {
-    description = 'bees wax',
+    description = i18n('Beeswax'),
     inventory_image = 'bees_wax.png',
     stack_max = 48,
   })
 
   minetest.register_craftitem('bees:honey_comb', {
-    description = 'honey comb',
+    description = i18n('Honey comb'),
     inventory_image = 'bees_comb.png',
     on_use = minetest.item_eat(2),
     stack_max = 8,
   })
 
   minetest.register_craftitem('bees:colony', {
-    description = 'A Bee Colony',
+    description = i18n('A Bee Colony'),
     inventory_image = 'bees_particle_bee.png',
     stack_max = 1,
   })
@@ -891,7 +891,7 @@ bees_version = '3.0-dev'
 
 --TOOLS
   minetest.register_tool('bees:smoker', {
-    description = 'smoker',
+    description = i18n('Bee smoker'),
     inventory_image = 'bees_smoker.png',
     tool_capabilities = {
       full_punch_interval = 3.0,
@@ -923,7 +923,7 @@ bees_version = '3.0-dev'
   })
 
   minetest.register_tool('bees:grafting_tool', {
-    description = 'grafting tool',
+    description = i18n('Grafting tool'),
     inventory_image = 'bees_grafting_tool.png',
     tool_capabilities = {
       full_punch_interval = 3.0,
@@ -963,7 +963,7 @@ bees_version = '3.0-dev'
   --PIPEWORKS
   if minetest.get_modpath("pipeworks") then
     minetest.register_node('bees:hive_industrial', {
-      description = 'industrial bee hive',
+      description = i18n('Industrial bee hive'),
       tiles = { 'bees_hive_industrial.png'},
       paramtype2 = 'facedir',
       groups = {snappy=1,choppy=2,oddly_breakable_by_hand=2,tubedevice=1,tubedevice_receiver=1, hives = 1},
@@ -1065,7 +1065,7 @@ bees_version = '3.0-dev'
           local hives = bees.count_hives_around(pos)
           local growth_rate = bees.growth_rate(#flowers, #hives)
           if growth_rate < 0 then --warn the player that the colony will die soon
-            meta:set_string('infotext', i18n('the colony is dying, not enough flowers around'))
+            meta:set_string('infotext', i18n('colony is dying, not enough flowers around'))
             timer:start(1000 / bees_speedup)
             return
           else --colony survival is assured, let's look at frames
