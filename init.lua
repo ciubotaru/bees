@@ -775,8 +775,8 @@ bees_version = '3.0-dev'
     action = function(pos, node, _, _)
       local p = {x=pos.x, y=pos.y-1, z=pos.z} --spawn under leaves
       if minetest.get_node(p).walkable == false then return end
-      local flowers = bees.count_flowers_around(pos)
-      if (#flowers > 2 and minetest.find_node_near(p, 40, 'group:hives') == nil) then
+      local flowers = bees.count_flowers_around(pos) --5+ flowers needed for growth
+      if (#flowers > 4 and minetest.find_node_near(p, 40, 'group:hives') == nil) then
         minetest.add_node(p, {name='bees:hive_wild'})
       end
     end,
