@@ -571,9 +571,19 @@ bees_version = '3.0-dev'
       end
     end,
     on_metadata_inventory_put = function(pos, listname, index, stack, taker) --restart the colony by adding a queen
+      local flowers = bees.count_flowers_around(pos)
+      local hives = bees.count_hives_around(pos)
+      local growth_rate = bees.growth_rate(#flowers, #hives)
+      if growth_rate < 0 then
+        meta:set_string('infotext', i18n('the colony is dying, not enough flowers around'))
+      elseif growth_rate > 0 then
+        meta:set_string('infotext', i18n('this colony is growing'))
+      else
+        meta:set_string('infotext', i18n('this colony is not growing'))
+      end
       local timer = minetest.get_node_timer(pos)
       if not timer:is_started() then
-        timer:start(10)
+        timer:start(1000 / bees_speedup)
       end
     end,
     allow_metadata_inventory_put = function(pos, listname, index, stack, player)
@@ -690,11 +700,37 @@ bees_version = '3.0-dev'
       local meta = minetest.get_meta(pos)
       local inv = meta:get_inventory()
       local timer = minetest.get_node_timer(pos)
-      if listname == 'colony' or listname == 'frames' then
-        meta:set_string('infotext', i18n('a colony is inserted, now for the empty frames'))
-        if inv:contains_item('frames', 'bees:frame_empty') then
-          timer:start(30 / bees_speedup)
-          meta:set_string('infotext', i18n('bees are aclimating'))
+      if listname == 'colony' then --a colony was inserted
+        local flowers = bees.count_flowers_around(pos)
+        local hives = bees.count_hives_around(pos)
+        local growth_rate = bees.growth_rate(#flowers, #hives)
+        if growth_rate < 0 then --warn the player that the colony will die soon
+          meta:set_string('infotext', i18n('the colony is dying, not enough flowers around'))
+          timer:start(1000 / bees_speedup)
+          return
+        else --colony survival is assured, let's look at frames
+          if inv:contains_item('frames', 'bees:frame_empty') then
+            meta:set_string('infotext', i18n('bees are aclimating'))
+            timer:start(1000 / bees_speedup)
+            return
+          else
+            meta:set_string('infotext', i18n('a colony is inserted, now for the empty frames'))
+            timer:start(1000 / bees_speedup) --recheck later (growth_rate can turn negative)
+            return
+          end
+        end
+      elseif listname == 'frames' then --frames were inserted
+        if inv:contains_item('colony', 'bees:colony') then --if the colony is already there, let's see growth rate
+          local flowers = bees.count_flowers_around(pos)
+          local hives = bees.count_hives_around(pos)
+          local growth_rate = bees.growth_rate(#flowers, #hives)
+          if growth_rate > 0 then --start working
+            timer:start(30 / bees_speedup)
+            meta:set_string('infotext', i18n('bees are aclimating'))
+            return
+          end
+        else --the colony is not there
+          timer:stop() --nothing to do
         end
       end
     end,
@@ -1024,11 +1060,37 @@ bees_version = '3.0-dev'
         local meta = minetest.get_meta(pos)
         local inv = meta:get_inventory()
         local timer = minetest.get_node_timer(pos)
-        if listname == 'colony' or listname == 'frames' then
-          meta:set_string('infotext', i18n('a colony is inserted, now for the empty frames'))
-          if inv:contains_item('frames', 'bees:frame_empty') then
-            timer:start(30 / bees_speedup)
-            meta:set_string('infotext', i18n('bees are aclimating'))
+        if listname == 'colony' then --a colony was inserted
+          local flowers = bees.count_flowers_around(pos)
+          local hives = bees.count_hives_around(pos)
+          local growth_rate = bees.growth_rate(#flowers, #hives)
+          if growth_rate < 0 then --warn the player that the colony will die soon
+            meta:set_string('infotext', i18n('the colony is dying, not enough flowers around'))
+            timer:start(1000 / bees_speedup)
+            return
+          else --colony survival is assured, let's look at frames
+            if inv:contains_item('frames', 'bees:frame_empty') then
+              meta:set_string('infotext', i18n('bees are aclimating'))
+              timer:start(1000 / bees_speedup)
+              return
+            else
+              meta:set_string('infotext', i18n('a colony is inserted, now for the empty frames'))
+              timer:start(1000 / bees_speedup) --recheck later (growth_rate can turn negative)
+              return
+            end
+          end
+        elseif listname == 'frames' then --frames were inserted
+          if inv:contains_item('colony', 'bees:colony') then --if the colony is already there, let's see growth rate
+            local flowers = bees.count_flowers_around(pos)
+            local hives = bees.count_hives_around(pos)
+            local growth_rate = bees.growth_rate(#flowers, #hives)
+            if growth_rate > 0 then --start working
+              timer:start(30 / bees_speedup)
+              meta:set_string('infotext', i18n('bees are aclimating'))
+              return
+            end
+          else --the colony is not there
+            timer:stop() --nothing to do
           end
         end
       end,
