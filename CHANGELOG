@@ -2,13 +2,15 @@ Changelog
 ---------
 
 3.0-dev
+- added translations (ro, ru)
+- added support for 'intllib' mod
 - pollination removed
-- honeycomb generation depends on other hives around, not just number of flowers
-- wild bee hives swarm and create new hives when no free space left
+- honey generation depends on other hives around, not just number of flowers
+- bee hives swarm and create new hives when no free space left
 - bee swarms try to re-colonize empty hives
 - Pipeworks compatibility (Industrial beehive)
 - Get honey comb from full frame
-- Code license changed from WTFPL to GPLv3+
+- code license changed from WTFPL to GPLv3+
 
 2.2.1
 - removed steel dependency temporarily
