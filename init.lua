@@ -32,7 +32,7 @@ Date: February 21, 2016
       local v = s:gsub("@(%d+)", function(n)
         return a[tonumber(n)]
       end)
-      return v[1] --do not return the number of substitutions
+      return v
     end
   end
 
