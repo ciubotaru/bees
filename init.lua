@@ -7,6 +7,9 @@ License: General Public License, version 3 or later
 Date: February 21, 2016
 ]]
 
+minetest.log('action', 'MOD: Bees loading...')
+bees_version = '3.0-dev'
+
 --VARIABLES
   if minetest.setting_get("bees_radius") == nil then
     bees_radius = 10
@@ -72,7 +75,6 @@ Date: February 21, 2016
   function bees.count_hives_around(pos)
     local minp = {x = pos.x - bees_radius, y = pos.y - bees_radius, z = pos.z - bees_radius}
     local maxp = {x = pos.x + bees_radius, y = pos.y + bees_radius, z = pos.z + bees_radius}
---    local nodenames = {'bees:hive_artificial', 'bees:hive_wild', 'bees:hive_industrial'}
     local hives = minetest.find_nodes_in_area(minp, maxp, 'group:hives')
     local i
     if not hives then
@@ -153,7 +155,6 @@ Date: February 21, 2016
       return false --the swarm could not find any leaves
     end
     local spaces = {}
-    --local tmp_space = {}
     --find all free space around remaining leaves
     for i=#leaves, 1, -1 do
       --for every leaf, see if there's air beneath
@@ -1057,4 +1058,4 @@ Date: February 21, 2016
     })
   end
 
-print('[Mod] Bees Loaded!')
+minetest.log('action', 'MOD: Bees version ' .. bees_version .. ' loaded.')
