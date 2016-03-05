@@ -20,7 +20,7 @@ bees_version = '3.0-dev'
 
 --swarms settle only in places with growth rate above this value
   if minetest.setting_get("bees_swarm_settle_threshold") == nil then
-    bees_swarm_settle_threshold = 0
+    bees_swarm_settle_threshold = 1
   else
     bees_swarm_settle_threshold = tonumber(minetest.setting_get('bees_swarm_settle_threshold'))
   end
@@ -129,24 +129,29 @@ bees_version = '3.0-dev'
     local i
     local hives_around
     local flowers_around
-    local growth_rate
     local new_hive_pos
     --first let's see if we can colonize an abandoned hive...
     --retrieve the list of hives within 2 radii from mother hive
     local hives = minetest.find_nodes_in_area(minp, maxp, 'group:hives')
-    local chosen_place = {pos = nil, growth_rate = 0} --starting values
+    local best_growth_rate = bees_swarm_settle_threshold --starting value
+    local chosen_places = {}
+    local current_growth_rate
+--    local chosen_place = {pos = nil, growth_rate = 0} --starting values
     for i = 1, #hives do
       --look at hives that are far (beyond 1 radius) and empty
-      if (hives[i].x < pos.x - bees_radius or hives[i].x > pos.x + bees_radius) and (hives[i].y < pos.y - bees_radius or hives[i].y > pos.y + bees_radius) and (hives[i].z < pos.z - bees_radius or hives[i].z > pos.z + bees_radius) and bees.is_hive_alive(hives[i]) then
-        growth_rate = bees.growth_rate(#bees.count_flowers_around(hives[i]),  #bees.count_hives_around(hives[i]))
-        if growth_rate > chosen_place.growth_rate then
-          chosen_place = {pos = hives[i], growth_rate = growth_rate} --new champion
+      if (hives[i].x < pos.x - bees_radius or hives[i].x > pos.x + bees_radius) and (hives[i].y < pos.y - bees_radius or hives[i].y > pos.y + bees_radius) and (hives[i].z < pos.z - bees_radius or hives[i].z > pos.z + bees_radius) and bees.is_hive_alive(hives[i]) == false then
+        current_growth_rate = bees.growth_rate(#bees.count_flowers_around(hives[i]),  #bees.count_hives_around(hives[i]) + 1)
+        if growth_rate > best_growth_rate then --new champion
+          chosen_places = {hives[i]}
+          best_growth_rate = current_growth_rate
+        elseif growth_rate == best_growth_rate then --add to champions
+          table.insert(chosen_places, {hives[i]})
         end
       end
     end
-    --see if the chosen hive's growth rate is above threshold
-    if chosen_place.growth_rate > bees_swarm_settle_threshold then
-      bees.recolonize_hive(chosen_place.pos)
+    --see any place is above threshold
+    if #chosen_places > 0 then --random among best places
+      bees.recolonize_hive(chosen_places[math.random(#chosen_places)])
       return true
     end
     --if we are here, the swarm found no suitable hives for recolonization
@@ -158,38 +163,19 @@ bees_version = '3.0-dev'
       return true
     end
     for i = #leaves, 1, -1 do --go backwards
-      --remove leaves that are too close
-      if leaves[i].x > pos.x - bees_radius and leaves[i].x < pos.x + bees_radius and leaves[i].y > pos.y - bees_radius and leaves[i].y < pos.y + bees_radius and leaves[i].z > pos.z - bees_radius and leaves[i].z < pos.z + bees_radius then
-        table.remove(leaves, i)
+      --look at leaves that are far (beyond 1 radius) and have air beneath
+      if (leaves[i].x < pos.x - bees_radius or leaves[i].x > pos.x + bees_radius) and (leaves[i].y < pos.y - bees_radius or leaves[i].y > pos.y + bees_radius) and (leaves[i].z < pos.z - bees_radius or leaves[i].z > pos.z + bees_radius) and minetest.get_node({x = leaves[i].x, y = leaves[i].y - 1, z = leaves[i].z}).name == 'air' then
+        current_growth_rate = bees.growth_rate(#bees.count_flowers_around({x = leaves[i].x, y = leaves[i].y - 1, z = leaves[i].z}),  #bees.count_hives_around({x = leaves[i].x, y = leaves[i].y - 1, z = leaves[i].z}) + 1)
+        if current_growth_rate > best_growth_rate then --new champion
+          chosen_places = {x = leaves[i].x, y = leaves[i].y - 1, z = leaves[i].z}
+          best_growth_rate = current_growth_rate
+        elseif current_growth_rate == best_growth_rate then --add to champions
+          table.insert(chosen_places, {x = leaves[i].x, y = leaves[i].y - 1, z = leaves[i].z})
+        end
       end
     end
-    if #leaves < 1 then
-      return false --the swarm could not find any leaves
-    end
-    local spaces = {}
-    --find all free space around remaining leaves
-    for i=#leaves, 1, -1 do
-      --for every leaf, see if there's air beneath
-      if minetest.get_node({x = leaves[i].x, y = leaves[i].y - 1, z = leaves[i].z}).name == 'air' then
-        table.insert(spaces, {x = leaves[i].x, y = leaves[i].y - 1, z = leaves[i].z})
-      end
-    end
-    if #spaces < 1 then
-      return false --the swarm could not find any free space
-    end
-    --iterate among good spaces and remove ones with non-positive growth_rate
-    for i = 1, #spaces do
-      new_hive_pos = {x = spaces[i].x, y = spaces[i].y, z = spaces[i].z}
-      hives_around = bees.count_hives_around(new_hive_pos)
-      flowers_around = bees.count_flowers_around(new_hive_pos)
-      growth_rate = bees.growth_rate(#flowers_around, #hives_around + 1)
-      if growth_rate > chosen_place.growth_rate then
-        chosen_place = {pos = new_hive_pos, growth_rate = growth_rate}
-      end
-    end
-    --see if the chosen places's growth rate is above threshold
-    if chosen_place.growth_rate > bees_swarm_settle_threshold then
-      minetest.set_node(chosen_place.pos, {name = 'bees:hive_wild'})
+    if #chosen_places > 0 then --random among best places
+      minetest.set_node(chosen_places[math.random(#chosen_places)], {name = 'bees:hive_wild'})
       bees.fill_new_wild_hive(chosen_place.pos)
       return true
     end
