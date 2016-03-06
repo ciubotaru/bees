@@ -325,9 +325,35 @@ bees_version = '3.0-dev'
 --NODES
   minetest.register_node('bees:extractor', {
     description = i18n('Honey extractor'),
-    tiles = {"bees_extractor.png", "bees_extractor.png", "bees_extractor.png", "bees_extractor.png", "bees_extractor.png", "bees_extractor_front.png"},
+    tiles = {
+      "bees_extractor_top.png",
+      "bees_extractor_bottom.png",
+      "bees_extractor_right.png",
+      "bees_extractor_left.png",
+      "bees_extractor_rear.png",
+      "bees_extractor_front.png"
+    },
+    paramtype = "light",
     paramtype2 = "facedir",
     groups = {choppy=2,oddly_breakable_by_hand=2,tubedevice=1,tubedevice_receiver=1},
+    drawtype = "nodebox",
+    node_box = {
+      type = "fixed",
+      fixed = {
+        {-0.25, -0.375, -0.3125, 0.0625, 0.4375, 0.5},
+        {-0.5, -0.375, -0.0625, 0.3125, 0.4375, 0.25},
+        {-0.375, -0.375, -0.25, 0.1875, 0.4375, 0.4375},
+        {-0.4375, -0.375, -0.1875, 0.25, 0.4375, 0.375},
+        {-0.5, 0.25, 0.0625, 0.375, 0.5, 0.125},
+        {0.375, 0.25, 0.0625, 0.5, 0.3125, 0.125},
+        {-0.5, -0.5, 0.0625, -0.4375, -0.375, 0.125},
+        {0.25, -0.5, 0.0625, 0.3125, -0.375, 0.125},
+        {-0.125, -0.5, 0.4375, -0.0625, -0.375, 0.5},
+        {-0.125, -0.5, -0.3125, -0.0625, -0.375, -0.25},
+        {-2/16, -4/16, -8/16, -1/16, -3/16, -5/16},
+        {-2/16, -5/16, -8/16, -1/16, -4/16, -7/16},
+      }
+    },
     on_construct = function(pos, node)
       local meta = minetest.get_meta(pos)
       local inv  = meta:get_inventory()
