@@ -40,6 +40,7 @@ bees_version = '3.0-dev'
   end
 
   local bees = {}
+  local sound = {}
   local formspecs = {}
 
   local i18n --internationalization
@@ -477,6 +478,7 @@ bees_version = '3.0-dev'
     buildable_to = true,
     pointable = false,
     on_punch = function(pos, node, puncher)
+      minetest.sound_play("bees_angry", {to_player = puncher:get_player_name()})
       local health = puncher:get_hp()
       puncher:set_hp(health-2)
     end,
@@ -576,6 +578,7 @@ bees_version = '3.0-dev'
       local meta = minetest.get_meta(pos)
       local inv = meta:get_inventory()
       if inv:contains_item('colony','bees:colony') then
+        minetest.sound_play("bees_angry", {to_player = puncher:get_player_name()})
         local health = puncher:get_hp()
         puncher:set_hp(health-4)
       end
@@ -625,6 +628,7 @@ bees_version = '3.0-dev'
       local meta = minetest.get_meta(pos)
       local inv  = meta:get_inventory()
       if meta:get_int('agressive') == 1 and inv:contains_item('colony', 'bees:colony') then
+        minetest.sound_play("bees_angry", {to_player = clicker:get_player_name()})
         local health = clicker:get_hp()
         clicker:set_hp(health-4)
       else
@@ -690,6 +694,7 @@ bees_version = '3.0-dev'
       local meta = minetest.get_meta(pos)
       local inv  = meta:get_inventory()
       if meta:get_int('agressive') == 1 and inv:contains_item('colony', 'bees:colony') then
+        minetest.sound_play("bees_angry", {to_player = clicker:get_player_name()})
         local health = clicker:get_hp()
         clicker:set_hp(health-4)
       else
@@ -802,6 +807,7 @@ bees_version = '3.0-dev'
       if (#flowers > 4 and minetest.find_node_near(p, 40, 'group:hives') == nil) then
         minetest.add_node(p, {name='bees:hive_wild'})
       end
+      sound["x"..pos.x.."y"..pos.y.."z"..pos.z] = minetest.sound_play({name="bees_fly"},{pos=pos, max_hear_distance=8, gain=0.6})
     end,
   })
 
@@ -1050,6 +1056,7 @@ bees_version = '3.0-dev'
         local meta = minetest.get_meta(pos)
         local inv  = meta:get_inventory()
         if meta:get_int('agressive') == 1 and inv:contains_item('colony', 'bees:colony') then
+          minetest.sound_play("bees_angry", {to_player = clicker:get_player_name()})
           local health = clicker:get_hp()
           clicker:set_hp(health-4)
         else
