@@ -27,7 +27,7 @@ bees_version = '3.0-dev'
 
 --survival number of flowers per hive
   if minetest.setting_get("bees_flowers_per_hive") == nil then
-    bees_flowers_per_hive = 4
+    bees_flowers_per_hive = 5
   else
     bees_flowers_per_hive = tonumber(minetest.setting_get('bees_flowers_per_hive'))
   end
