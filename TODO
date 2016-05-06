@@ -1,5 +1,8 @@
 ToDo
 ----
+- Bee colony should not show in artificial hives (wooden and industrial) without
+  the grafting tool (like in wild hives).
+- New textures/nodebox for industrial hive.
+- Screenshot.
+- Documentation for variables.
 
-- more realistic spawning of wild bee hives
-- growth speeds need to be adjusted accross types of hive
